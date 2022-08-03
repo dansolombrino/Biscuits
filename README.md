@@ -1,6 +1,5 @@
 # Biscuits
 
-# Biscuits
 A set of **experiments** inspired by the **paper** ["Training BatchNorm and Only BatchNorm: On the Expressive Power of Random Features in CNNs"](https://arxiv.org/abs/2003.00152) by Jonathan Frankle, David J. Schwab, Ari S. Morcos
 
 Presented as **final project** for the "**Deep Learning and Applied AI**" exam, taught in A.Y. 2021/22 of Computer Science MSc by **Prof Emanuele Rodolà**
@@ -12,9 +11,6 @@ Presented as **final project** for the "**Deep Learning and Applied AI**" exam, 
     <a href="https://www.python.org/downloads/"><img alt="Python" src="https://img.shields.io/badge/python-3.9-blue.svg"></a>
     <a href="https://black.readthedocs.io/en/stable/"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
-
- 
-
 
 ## Installation
 
