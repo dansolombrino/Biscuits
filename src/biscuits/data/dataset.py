@@ -1,36 +1,30 @@
 import hydra
 import omegaconf
 from torch.utils.data import Dataset
-from torchvision.datasets import FashionMNIST
+from torchvision.datasets import CIFAR10, FashionMNIST
 
 from nn_core.common import PROJECT_ROOT
 from nn_core.nn_types import Split
 
 
 class MyDataset(Dataset):
-    def __init__(self, split: Split, **kwargs):
+    def __init__(
+        self,
+        train: bool,
+        path: str,
+        # **kwargs
+    ):
         super().__init__()
-        self.split: Split = split
+        self.train = train
+        self.path = path
 
-        # example
-        self.mnist = FashionMNIST(
-            kwargs["path"],
-            train=split == "train",
-            download=True,
-            transform=kwargs["transform"],
-        )
-
-    @property
-    def class_vocab(self):
-        return self.mnist.class_to_idx
+        self.cifar10 = CIFAR10(root=self.path, train=self.train, download=True)
 
     def __len__(self) -> int:
-        # example
-        return len(self.mnist)
+        return len(self.cifar10)
 
     def __getitem__(self, index: int):
-        # example
-        return self.mnist[index]
+        return self.cifar10[index]
 
     def __repr__(self) -> str:
         return f"MyDataset({self.split=}, n_instances={len(self)})"
@@ -43,7 +37,7 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    _: Dataset = hydra.utils.instantiate(cfg.nn.data.datasets.train, split="train", _recursive_=False)
+    dataset: MyDataset = hydra.utils.instantiate(cfg.nn.data.datasets.train, _recursive_=False)
 
 
 if __name__ == "__main__":

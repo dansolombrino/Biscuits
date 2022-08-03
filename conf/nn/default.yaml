@@ -4,6 +4,9 @@ data:
   datasets:
     train:
       _target_: biscuits.data.dataset.MyDataset
+      # path: /home/dansolombrino/GitHub/biscuits/data
+      path: ${oc.env:TRAIN_DATASET_PATH}
+      train: True
 
 #    val:
 #      - _target_: biscuits.data.dataset.MyDataset
