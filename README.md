@@ -1,5 +1,10 @@
 # Biscuits
 
+# Biscuits
+A set of **experiments** inspired by the **paper** ["Training BatchNorm and Only BatchNorm: On the Expressive Power of Random Features in CNNs"](https://arxiv.org/abs/2003.00152) by Jonathan Frankle, David J. Schwab, Ari S. Morcos
+
+Presented as **final project** for the "**Deep Learning and Applied AI**" exam, taught in A.Y. 2021/22 of Computer Science MSc by **Prof Emanuele Rodolà**
+
 <p align="center">
     <a href="https://github.com/dansolombrino/biscuits/actions/workflows/test_suite.yml"><img alt="CI" src=https://img.shields.io/github/workflow/status/dansolombrino/biscuits/Test%20Suite/main?label=main%20checks></a>
     <a href="https://dansolombrino.github.io/biscuits"><img alt="Docs" src=https://img.shields.io/github/deployments/dansolombrino/biscuits/github-pages?label=docs></a>
