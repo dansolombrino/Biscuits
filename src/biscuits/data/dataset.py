@@ -38,7 +38,9 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    dataset: CIFAR10Dataset = hydra.utils.instantiate(cfg.nn.data.datasets.train, _recursive_=False)
+    dataset: CIFAR10Dataset = hydra.utils.instantiate(
+        cfg.nn.data.datasets.train, _recursive_=False
+    )
 
 
 if __name__ == "__main__":
