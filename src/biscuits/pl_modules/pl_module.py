@@ -21,7 +21,9 @@ pylogger = logging.getLogger(__name__)
 class MyLightningModule(pl.LightningModule):
     logger: NNLogger
 
-    def __init__(self, metadata: Optional[MetaData] = None, *args, **kwargs) -> None:
+    def __init__(
+        self, metadata: Optional[MetaData] = None, *args, **kwargs
+    ) -> None:
         super().__init__()
 
         # Populate self.hparams with args and kwargs automagically!
@@ -29,15 +31,14 @@ class MyLightningModule(pl.LightningModule):
         # Be careful when modifying this instruction. If in doubt, don't do it :]
         self.save_hyperparameters(logger=False, ignore=("metadata",))
 
-        self.metadata = metadata
+        # self.metadata = metadata
 
-        # example
         metric = torchmetrics.Accuracy()
         self.train_accuracy = metric.clone()
         self.val_accuracy = metric.clone()
         self.test_accuracy = metric.clone()
 
-        self.model = CNN(num_classes=len(metadata.class_vocab))
+        # self.model = CNN(num_classes=len(metadata.class_vocab))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Method for the forward pass.
@@ -48,7 +49,6 @@ class MyLightningModule(pl.LightningModule):
         Returns:
             output_dict: forward output containing the predictions (output logits ecc...) and the loss if any.
         """
-        # example
         return self.model(x)
 
     def step(self, x, y) -> Mapping[str, Any]:
@@ -79,27 +79,27 @@ class MyLightningModule(pl.LightningModule):
 
         return step_out
 
-    def validation_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
-        # example
-        x, y = batch
-        step_out = self.step(x, y)
+    # def validation_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
+    #     # example
+    #     x, y = batch
+    #     step_out = self.step(x, y)
 
-        self.log_dict(
-            {"loss/val": step_out["loss"].cpu().detach()},
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
+    #     self.log_dict(
+    #         {"loss/val": step_out["loss"].cpu().detach()},
+    #         on_step=False,
+    #         on_epoch=True,
+    #         prog_bar=True,
+    #     )
 
-        self.val_accuracy(torch.softmax(step_out["logits"], dim=-1), y)
-        self.log_dict(
-            {
-                "acc/val": self.val_accuracy,
-            },
-            on_epoch=True,
-        )
+    #     self.val_accuracy(torch.softmax(step_out["logits"], dim=-1), y)
+    #     self.log_dict(
+    #         {
+    #             "acc/val": self.val_accuracy,
+    #         },
+    #         on_epoch=True,
+    #     )
 
-        return step_out
+    #     return step_out
 
     def test_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
         # example
@@ -137,10 +137,16 @@ class MyLightningModule(pl.LightningModule):
             - Tuple of dictionaries as described, with an optional 'frequency' key.
             - None - Fit will run without any optimizer.
         """
-        opt = hydra.utils.instantiate(self.hparams.optimizer, params=self.parameters(), _convert_="partial")
+        opt = hydra.utils.instantiate(
+            self.hparams.optimizer,
+            params=self.parameters(),
+            _convert_="partial",
+        )
         if "lr_scheduler" not in self.hparams:
             return [opt]
-        scheduler = hydra.utils.instantiate(self.hparams.lr_scheduler, optimizer=opt)
+        scheduler = hydra.utils.instantiate(
+            self.hparams.lr_scheduler, optimizer=opt
+        )
         return [opt], [scheduler]
 
 
@@ -151,9 +157,11 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    _: pl.LightningModule = hydra.utils.instantiate(
-        cfg.model,
-        optim=cfg.optim,
+    model: pl.LightningModule = hydra.utils.instantiate(
+        # cfg.model,
+        cfg.nn.module,
+        # optim=cfg.optim,
+        optim=cfg.nn.module.optimizer,
         _recursive_=False,
     )
 
