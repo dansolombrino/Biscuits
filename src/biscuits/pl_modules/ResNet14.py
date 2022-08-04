@@ -1,3 +1,4 @@
+import re
 from turtle import forward
 
 import torch
@@ -6,23 +7,6 @@ from torch.nn import functional as F
 from torchinfo import summary
 
 EXPANSION = 1
-
-
-def get_children(model: torch.nn.Module):
-    # get children form model!
-    children = list(model.children())
-    flatt_children = []
-    if children == []:
-        # if model has no children; model is last child! :O
-        return model
-    else:
-        # look for children from children... to the last child!
-        for child in children:
-            try:
-                flatt_children.extend(get_children(child))
-            except TypeError:
-                flatt_children.append(get_children(child))
-    return flatt_children
 
 
 class block(nn.Module):
@@ -56,18 +40,10 @@ class block(nn.Module):
         )
         self.bn2 = nn.BatchNorm2d(intermediate_channels)
 
-        # self.conv3 = nn.Conv2d(
-        #     intermediate_channels,
-        #     intermediate_channels * self.expansion,
-        #     kernel_size=1,
-        #     stride=1,
-        #     padding=0,
-        #     bias=False
-        # )
-        # self.bn3 = nn.BatchNorm2d(intermediate_channels * self.expansion)
-
         self.relu = nn.ReLU()
+
         self.identity_downsample = identity_downsample
+
         self.stride = stride
 
     def forward(self, x):
@@ -80,14 +56,12 @@ class block(nn.Module):
         x = self.bn2(x)
         x = self.relu(x)
 
-        # x = self.conv3(x)
-        # x = self.bn3(x)
-
         if self.identity_downsample is not None:
             identity = self.identity_downsample(identity)
 
         x += identity
         x = self.relu(x)
+
         return x
 
 
@@ -102,7 +76,6 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        # Essentially the entire ResNet architecture are in these 4 lines below
         self.layer1 = self._make_layer(
             block, layers[0], intermediate_channels=64, stride=1
         )
@@ -113,12 +86,7 @@ class ResNet(nn.Module):
             block, layers[2], intermediate_channels=256, stride=2
         )
 
-        # self.layer4 = self._make_layer(
-        #     block, layers[3], intermediate_channels=512, stride=2
-        # )
-
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        # self.fc = nn.Linear(512 * EXPANSION, num_classes)
         self.fc = nn.Linear(256 * EXPANSION, num_classes)
 
     def forward(self, x):
@@ -129,8 +97,6 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-
-        # x = self.layer4(x)
 
         x = self.avgpool(x)
         x = x.reshape(x.shape[0], -1)
@@ -180,42 +146,37 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
 
-def ResNet50(img_channel=3, num_classes=1000):
-    return ResNet(block, [3, 4, 6, 3], img_channel, num_classes)
-
-
-def ResNet101(img_channel=3, num_classes=1000):
-    # return ResNet(block, [3, 4, 23, 3], img_channel, num_classes)
-    return ResNet(block, [6, 6, 6], img_channel, num_classes)
-
-
-def ResNet152(img_channel=3, num_classes=1000):
-    return ResNet(block, [3, 8, 36, 3], img_channel, num_classes)
-
-
 def test():
     DESIRED_RESNET_DEPTH = 110
-    num_res_blocks_to_reach_desired_depth = (DESIRED_RESNET_DEPTH - 2) / 6
-    print(num_res_blocks_to_reach_desired_depth)
-    net = ResNet(block, [18, 18, 18], image_channels=3, num_classes=1000)
+
+    # number of res blocks (in each of the 3 layers!) needed to reach desired depth
+    num_res_blocks = int((DESIRED_RESNET_DEPTH - 2) / 6)
+
+    net = ResNet(
+        block,
+        [num_res_blocks, num_res_blocks, num_res_blocks],
+        image_channels=3,
+        num_classes=10,
+    )
 
     y = net(torch.randn(4, 3, 224, 224)).to("cuda")
 
-    # pprint(str(net))
-    import re
-    from pprint import pprint
+    num_conv_occurrencies = len(
+        [m.start() for m in re.finditer("\(conv", str(net))]
+    )
 
-    l = [m.start() for m in re.finditer("\(conv", str(net))]
-    print(len(l))
-
-    if len(l) + 1 != DESIRED_RESNET_DEPTH:
+    if num_conv_occurrencies + 1 != DESIRED_RESNET_DEPTH:
         print(
             f"ERROR! Specified params did NOT yield to the creation of a ResNet-{DESIRED_RESNET_DEPTH}"
         )
         print(f"       DESIRED_RESNET_DEPTH: {DESIRED_RESNET_DEPTH}")
-        print(f"       Resulting NN depth  : {len(l) + 1}")
+        print(f"       Resulting NN depth  : {num_conv_occurrencies + 1}")
+        exit()
     else:
         print(f"ResNet-{DESIRED_RESNET_DEPTH} succesfully created!")
+
+    tot_params = sum(p.numel() for p in net.parameters())
+    print(tot_params)
 
 
 test()
