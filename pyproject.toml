@@ -12,7 +12,7 @@ exclude_lines = [
 ]
 
 [tool.black]
-line-length = 120
+line-length = 80
 include = '\.pyi?$'
 
 [tool.mypy]
@@ -21,7 +21,7 @@ ignore_missing_imports = true
 
 [tool.isort]
 profile = 'black'
-line_length = 120
+line_length = 80
 known_third_party = ["numpy", "pytest", "wandb", "torch"]
 known_first_party = ["nn_core"]
 known_local_folder = "biscuits"
