@@ -8,6 +8,23 @@ from torchinfo import summary
 EXPANSION = 1
 
 
+def get_children(model: torch.nn.Module):
+    # get children form model!
+    children = list(model.children())
+    flatt_children = []
+    if children == []:
+        # if model has no children; model is last child! :O
+        return model
+    else:
+        # look for children from children... to the last child!
+        for child in children:
+            try:
+                flatt_children.extend(get_children(child))
+            except TypeError:
+                flatt_children.append(get_children(child))
+    return flatt_children
+
+
 class block(nn.Module):
     def __init__(
         self,
@@ -177,9 +194,28 @@ def ResNet152(img_channel=3, num_classes=1000):
 
 
 def test():
-    net = ResNet101(img_channel=3, num_classes=1000)
+    DESIRED_RESNET_DEPTH = 110
+    num_res_blocks_to_reach_desired_depth = (DESIRED_RESNET_DEPTH - 2) / 6
+    print(num_res_blocks_to_reach_desired_depth)
+    net = ResNet(block, [18, 18, 18], image_channels=3, num_classes=1000)
+
     y = net(torch.randn(4, 3, 224, 224)).to("cuda")
-    print(y.size())
+
+    # pprint(str(net))
+    import re
+    from pprint import pprint
+
+    l = [m.start() for m in re.finditer("\(conv", str(net))]
+    print(len(l))
+
+    if len(l) + 1 != DESIRED_RESNET_DEPTH:
+        print(
+            f"ERROR! Specified params did NOT yield to the creation of a ResNet-{DESIRED_RESNET_DEPTH}"
+        )
+        print(f"       DESIRED_RESNET_DEPTH: {DESIRED_RESNET_DEPTH}")
+        print(f"       Resulting NN depth  : {len(l) + 1}")
+    else:
+        print(f"ResNet-{DESIRED_RESNET_DEPTH} succesfully created!")
 
 
 test()
