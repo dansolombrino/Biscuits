@@ -214,9 +214,9 @@ def ResNetFactory(depth: int) -> ResNet:
     return globals()["resnet" + str(depth)]()
 
 
-def test(net):
+# def test(net):
 
-    print_num_summary(net)
+#     print_num_summary(net)
 
 
 if __name__ == "__main__":
