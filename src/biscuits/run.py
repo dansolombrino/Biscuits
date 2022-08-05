@@ -33,7 +33,9 @@ def build_callbacks(cfg: ListConfig, *args: Callback) -> List[Callback]:
     callbacks: List[Callback] = list(args)
 
     for callback in cfg:
-        pylogger.info(f"Adding callback <{callback['_target_'].split('.')[-1]}>")
+        pylogger.info(
+            f"Adding callback <{callback['_target_'].split('.')[-1]}>"
+        )
         callbacks.append(hydra.utils.instantiate(callback, _recursive_=False))
 
     return callbacks
@@ -52,7 +54,9 @@ def run(cfg: DictConfig) -> str:
 
     fast_dev_run: bool = cfg.train.trainer.fast_dev_run
     if fast_dev_run:
-        pylogger.info(f"Debug mode <{cfg.train.trainer.fast_dev_run=}>. Forcing debugger friendly configuration!")
+        pylogger.info(
+            f"Debug mode <{cfg.train.trainer.fast_dev_run=}>. Forcing debugger friendly configuration!"
+        )
         # Debuggers don't like GPUs nor multiprocessing
         cfg.train.trainer.gpus = 0
         cfg.nn.data.num_workers.train = 0
@@ -63,25 +67,40 @@ def run(cfg: DictConfig) -> str:
 
     # Instantiate datamodule
     pylogger.info(f"Instantiating <{cfg.nn.data['_target_']}>")
-    datamodule: pl.LightningDataModule = hydra.utils.instantiate(cfg.nn.data, _recursive_=False)
+    datamodule: pl.LightningDataModule = hydra.utils.instantiate(
+        cfg.nn.data, _recursive_=False
+    )
 
     metadata: Optional[MetaData] = getattr(datamodule, "metadata", None)
     if metadata is None:
-        pylogger.warning(f"No 'metadata' attribute found in datamodule <{datamodule.__class__.__name__}>")
+        pylogger.warning(
+            f"No 'metadata' attribute found in datamodule <{datamodule.__class__.__name__}>"
+        )
 
     # Instantiate model
     pylogger.info(f"Instantiating <{cfg.nn.module['_target_']}>")
-    model: pl.LightningModule = hydra.utils.instantiate(cfg.nn.module, _recursive_=False, metadata=metadata)
+    model: pl.LightningModule = hydra.utils.instantiate(
+        cfg.nn.module,
+        _recursive_=False,
+        metadata=metadata,
+        resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
+    )
 
     # Instantiate the callbacks
     template_core: NNTemplateCore = NNTemplateCore(
         restore_cfg=cfg.train.get("restore", None),
     )
-    callbacks: List[Callback] = build_callbacks(cfg.train.callbacks, template_core)
+    callbacks: List[Callback] = build_callbacks(
+        cfg.train.callbacks, template_core
+    )
 
     storage_dir: str = cfg.core.storage_dir
 
-    logger: NNLogger = NNLogger(logging_cfg=cfg.train.logging, cfg=cfg, resume_id=template_core.resume_id)
+    logger: NNLogger = NNLogger(
+        logging_cfg=cfg.train.logging,
+        cfg=cfg,
+        resume_id=template_core.resume_id,
+    )
 
     pylogger.info("Instantiating the <Trainer>")
     trainer = pl.Trainer(
@@ -93,12 +112,19 @@ def run(cfg: DictConfig) -> str:
     )
 
     pylogger.info("Starting training!")
-    trainer.fit(model=model, datamodule=datamodule, ckpt_path=template_core.trainer_ckpt_path)
+    trainer.fit(
+        model=model,
+        datamodule=datamodule,
+        ckpt_path=template_core.trainer_ckpt_path,
+    )
 
     if fast_dev_run:
         pylogger.info("Skipping testing in 'fast_dev_run' mode!")
     else:
-        if "test" in cfg.nn.data.datasets and trainer.checkpoint_callback.best_model_path is not None:
+        if (
+            "test" in cfg.nn.data.datasets
+            and trainer.checkpoint_callback.best_model_path is not None
+        ):
             pylogger.info("Starting testing!")
             trainer.test(datamodule=datamodule)
 

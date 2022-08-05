@@ -18,7 +18,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class MetaData:
-    def __init__(self, class_vocab: Mapping[str, int]):
+    def __init__(self):
         """The data information the Lightning Module will be provided with.
 
         This is a "bridge" between the Lightning DataModule and the Lightning Module.
@@ -41,7 +41,7 @@ class MetaData:
             class_vocab: association between class names and their indices
         """
         # example
-        self.class_vocab: Mapping[str, int] = class_vocab
+        # self.class_vocab: Mapping[str, int] = class_vocab
 
     def save(self, dst_path: Path) -> None:
         """Serialize the MetaData attributes into the zipped checkpoint in dst_path.
@@ -49,12 +49,12 @@ class MetaData:
         Args:
             dst_path: the root folder of the metadata inside the zipped checkpoint
         """
-        pylogger.debug(f"Saving MetaData to '{dst_path}'")
+        # pylogger.debug(f"Saving MetaData to '{dst_path}'")
 
         # example
-        (dst_path / "class_vocab.tsv").write_text(
-            "\n".join(f"{key}\t{value}" for key, value in self.class_vocab.items())
-        )
+        # (dst_path / "class_vocab.tsv").write_text(
+        #     "\n".join(f"{key}\t{value}" for key, value in self.class_vocab.items())
+        # )
 
     @staticmethod
     def load(src_path: Path) -> "MetaData":
@@ -69,7 +69,11 @@ class MetaData:
         pylogger.debug(f"Loading MetaData from '{src_path}'")
 
         # example
-        lines = (src_path / "class_vocab.tsv").read_text(encoding="utf-8").splitlines()
+        lines = (
+            (src_path / "class_vocab.tsv")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
 
         class_vocab = {}
         for line in lines:
@@ -132,27 +136,40 @@ class MyDataModule(pl.LightningDataModule):
         if self.train_dataset is None:
             self.setup(stage="fit")
 
-        return MetaData(class_vocab=self.train_dataset.dataset.class_vocab)
+        # return MetaData(class_vocab=self.train_dataset.dataset.class_vocab)
+        return MetaData()
 
     def prepare_data(self) -> None:
         # download only
         pass
 
     def setup(self, stage: Optional[str] = None):
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor()
+                # , transforms.Normalize((0.1307,), (0.3081,))
+            ]
+        )
 
         # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
-        if (stage is None or stage == "fit") and (self.train_dataset is None and self.val_datasets is None):
+        if (stage is None or stage == "fit") and (
+            self.train_dataset is None and self.val_datasets is None
+        ):
             # example
             mnist_train = hydra.utils.instantiate(
-                self.datasets.train,
+                self.datasets.train_set,
                 split="train",
                 transform=transform,
-                path=PROJECT_ROOT / "data",
+                # path=PROJECT_ROOT / "data",
+                path=self.datasets.train_set.path,
             )
             train_length = int(len(mnist_train) * (1 - self.val_percentage))
+
             val_length = len(mnist_train) - train_length
-            self.train_dataset, val_dataset = random_split(mnist_train, [train_length, val_length])
+
+            self.train_dataset, val_dataset = random_split(
+                mnist_train, [train_length, val_length]
+            )
 
             self.val_datasets = [val_dataset]
 
@@ -161,10 +178,11 @@ class MyDataModule(pl.LightningDataModule):
                 hydra.utils.instantiate(
                     dataset_cfg,
                     split="test",
-                    path=PROJECT_ROOT / "data",
+                    # path=PROJECT_ROOT / "data",
+                    path=self.datasets.test_set.path,
                     transform=transform,
                 )
-                for dataset_cfg in self.datasets.test
+                for dataset_cfg in self.datasets.test_set
             ]
 
     def train_dataloader(self) -> DataLoader:
@@ -174,7 +192,9 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=self.batch_size.train,
             num_workers=self.num_workers.train,
             pin_memory=self.pin_memory,
-            collate_fn=partial(collate_fn, split="train", metadata=self.metadata),
+            collate_fn=partial(
+                collate_fn, split="train", metadata=self.metadata
+            ),
         )
 
     def val_dataloader(self) -> Sequence[DataLoader]:
@@ -185,7 +205,9 @@ class MyDataModule(pl.LightningDataModule):
                 batch_size=self.batch_size.val,
                 num_workers=self.num_workers.val,
                 pin_memory=self.pin_memory,
-                collate_fn=partial(collate_fn, split="val", metadata=self.metadata),
+                collate_fn=partial(
+                    collate_fn, split="val", metadata=self.metadata
+                ),
             )
             for dataset in self.val_datasets
         ]
@@ -198,13 +220,20 @@ class MyDataModule(pl.LightningDataModule):
                 batch_size=self.batch_size.test,
                 num_workers=self.num_workers.test,
                 pin_memory=self.pin_memory,
-                collate_fn=partial(collate_fn, split="test", metadata=self.metadata),
+                collate_fn=partial(
+                    collate_fn, split="test", metadata=self.metadata
+                ),
             )
             for dataset in self.test_datasets
         ]
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(" f"{self.datasets=}, " f"{self.num_workers=}, " f"{self.batch_size=})"
+        return (
+            f"{self.__class__.__name__}("
+            f"{self.datasets=}, "
+            f"{self.num_workers=}, "
+            f"{self.batch_size=})"
+        )
 
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
@@ -214,7 +243,11 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    _: pl.LightningDataModule = hydra.utils.instantiate(cfg.data.datamodule, _recursive_=False)
+    _: pl.LightningDataModule = hydra.utils.instantiate(
+        # cfg.data.datamodule,
+        cfg.nn.data.datasets,
+        _recursive_=False,
+    )
 
 
 if __name__ == "__main__":

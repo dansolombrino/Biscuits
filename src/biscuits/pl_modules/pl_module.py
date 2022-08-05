@@ -13,6 +13,7 @@ from nn_core.common import PROJECT_ROOT
 from nn_core.model_logging import NNLogger
 
 from biscuits.data.datamodule import MetaData
+from biscuits.modules import Basic_ResNet
 from biscuits.modules.module import CNN
 
 pylogger = logging.getLogger(__name__)
@@ -38,7 +39,11 @@ class MyLightningModule(pl.LightningModule):
         self.val_accuracy = metric.clone()
         self.test_accuracy = metric.clone()
 
-        # self.model = CNN(num_classes=len(metadata.class_vocab))
+        # available in self.hparams.resnet_depth as well!
+        self.resnet_depth = kwargs["resnet_depth"]
+        self.model = Basic_ResNet.ResNetFactory(self.resnet_depth)
+
+        Basic_ResNet.print_num_summary(self.model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Method for the forward pass.
@@ -52,9 +57,11 @@ class MyLightningModule(pl.LightningModule):
         return self.model(x)
 
     def step(self, x, y) -> Mapping[str, Any]:
-        # example
+
         logits = self(x)
+
         loss = F.cross_entropy(logits, y)
+
         return {"logits": logits.detach(), "loss": loss}
 
     def training_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
@@ -79,27 +86,27 @@ class MyLightningModule(pl.LightningModule):
 
         return step_out
 
-    # def validation_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
-    #     # example
-    #     x, y = batch
-    #     step_out = self.step(x, y)
+    def validation_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
+        # example
+        x, y = batch
+        step_out = self.step(x, y)
 
-    #     self.log_dict(
-    #         {"loss/val": step_out["loss"].cpu().detach()},
-    #         on_step=False,
-    #         on_epoch=True,
-    #         prog_bar=True,
-    #     )
+        self.log_dict(
+            {"loss/val": step_out["loss"].cpu().detach()},
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
-    #     self.val_accuracy(torch.softmax(step_out["logits"], dim=-1), y)
-    #     self.log_dict(
-    #         {
-    #             "acc/val": self.val_accuracy,
-    #         },
-    #         on_epoch=True,
-    #     )
+        self.val_accuracy(torch.softmax(step_out["logits"], dim=-1), y)
+        self.log_dict(
+            {
+                "acc/val": self.val_accuracy,
+            },
+            on_epoch=True,
+        )
 
-    #     return step_out
+        return step_out
 
     def test_step(self, batch: Any, batch_idx: int) -> Mapping[str, Any]:
         # example
@@ -163,6 +170,7 @@ def main(cfg: omegaconf.DictConfig) -> None:
         # optim=cfg.optim,
         optim=cfg.nn.module.optimizer,
         _recursive_=False,
+        resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
     )
 
 
