@@ -41,7 +41,7 @@ module:
   model:
     basic_resnet:
       _target_: biscuits.modules.Basic_ResNet
-      resnet_depth: 14
+      resnet_depth: 56
 
   optimizer:
     #  Adam-oriented deep learning
