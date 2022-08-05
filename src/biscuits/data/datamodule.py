@@ -146,8 +146,17 @@ class MyDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         transform = transforms.Compose(
             [
-                transforms.ToTensor()
-                # , transforms.Normalize((0.1307,), (0.3081,))
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomAffine(
+                    degrees=(0, 0),
+                    translate=(0.0625, 0.0625)
+                ),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), 
+                    (0.247, 0.243, 0.261)
+                )
+                # transforms.ToTensor()
             ]
         )
 
@@ -180,7 +189,7 @@ class MyDataModule(pl.LightningDataModule):
                     split="test",
                     # path=PROJECT_ROOT / "data",
                     path=self.datasets.test_set.path,
-                    transform=transform,
+                    #transform=transform,
                 )
                 for dataset_cfg in self.datasets.test_set
             ]
