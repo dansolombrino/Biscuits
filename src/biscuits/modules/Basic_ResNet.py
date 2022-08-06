@@ -18,22 +18,28 @@ __all__ = [
 ]
 
 NUM_CLASSES = 10
-FREEZE_CONV_PARAMS = False
+FREEZE_CONV_PARAMS = True
 FREEZE_BATCHNORM_PARAMS = False
 
-def _get_num_parameters(net: nn.Module, trainable: bool) -> bool:
+def _count_num_parameters(param_list, trainable):
     import numpy as np
 
     total_params = 0
 
-    param_list = net.parameters()
     if trainable is not None:
         param_list = filter(lambda p: p.requires_grad == trainable, param_list)
 
     for x in param_list:
-        total_params += np.prod(x.data.numpy().shape)
+        total_params += np.prod(torch.clone(x).cpu().data.numpy().shape)
 
     return total_params
+
+
+def _get_num_parameters(net: nn.Module, trainable: bool) -> bool:
+    
+    param_list = net.parameters()
+
+    return _count_num_parameters(param_list, trainable)
 
 
 def get_num_trainable_parameters(net):
@@ -47,11 +53,12 @@ def get_num_not_trainable_parameters(net):
 def get_num_parameters(net):
     return _get_num_parameters(net=net, trainable=None)
 
-
+# does NOT distinguish between trainable and NON-trainable layers, for now
 def get_num_layers(net):
     return len(
         list(
             filter(
+                # lambda p: p.requires_grad and len(p.data.size()) > 1,
                 lambda p: p.requires_grad and len(p.data.size()) > 1,
                 net.parameters(),
             )
@@ -81,11 +88,6 @@ def _weights_init(m):
     if isinstance(m, nn.BatchNorm2d):
         init.uniform_(m.weight, 0, 1)
         init.constant_(m.bias, 0)
-
-def _freeze_params(m, freeze_conv_params, freeze_batchnorm_params):
-
-    if freeze_conv_params == True:
-
 
 
 class LambdaLayer(nn.Module):
