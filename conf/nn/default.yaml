@@ -4,21 +4,18 @@ data:
   datasets:
     train_set:
       _target_: biscuits.data.dataset.CIFAR10Dataset
-      # path: /home/dansolombrino/GitHub/biscuits/data
       path: ${oc.env:TRAIN_DATASET_PATH}
       train: True
-      #split: 80
 
     val_set:
-      _target_: biscuits.data.dataset.CIFAR10Dataset
-      path: ${oc.env:VAL_DATASET_PATH}
-      train: False
+      - _target_: biscuits.data.dataset.CIFAR10Dataset
+        path: ${oc.env:VAL_DATASET_PATH}
+        train: False
 
     test_set:
-      _target_: biscuits.data.dataset.CIFAR10Dataset
-      path: ${oc.env:TEST_DATASET_PATH}
-      train: False
-      #split: 20
+      - _target_: biscuits.data.dataset.CIFAR10Dataset
+        path: ${oc.env:TEST_DATASET_PATH}
+        train: False
 
   gpus: ${train.trainer.gpus}
 
@@ -32,8 +29,8 @@ data:
     val: 128
     test: 128
 
-  # example
-  val_percentage: 0.2
+  # how much percentage of train split to reserve for validation
+  validation_percentage_split: 0.2
 
 module:
   _target_: biscuits.pl_modules.pl_module.MyLightningModule

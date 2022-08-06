@@ -1,6 +1,8 @@
 from glob import glob
 from typing import Mapping
 
+import pytorch_lightning as pl
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -68,17 +70,20 @@ def get_num_layers(net):
         )
     )
 
-
-def print_num_summary(net):
+def compute_num_summary(net):
     total_params = get_num_parameters(net)
     total_trainable_params = get_num_trainable_parameters(net)
     total_not_trainable_params = get_num_not_trainable_parameters(net)
-    print("Total number of params              ", total_params)
-    print("Total number of trainable params    ", total_trainable_params)
-    print("Total number of NOT trainable params", total_not_trainable_params)
-
     total_layers = get_num_layers(net)
-    print("Total layers                        ", total_layers)
+
+    return f"Total layers                        , {total_layers}\n" + \
+           f"Total number of params              , {total_params}\n" + \
+           f"Total number of trainable params    , {total_trainable_params}\n" + \
+           f"Total number of NOT trainable params, {total_not_trainable_params}\n"
+
+def print_num_summary(net):
+    print(compute_num_summary(net))
+    
 
 
 def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
@@ -99,6 +104,7 @@ def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
 
 
 class LambdaLayer(nn.Module):
+# class LambdaLayer(pl.LightningModule):
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
@@ -108,6 +114,7 @@ class LambdaLayer(nn.Module):
 
 
 class BasicBlock(nn.Module):
+# class BasicBlock(pl.LightningModule):
     expansion = 1
 
     def __init__(
@@ -206,8 +213,8 @@ def _init_layer_bias(layer, init_method, init_range=None):
     else:
         init.constant_(layer.bias, float(init_method))
 
-
 class ResNet(nn.Module):
+# class ResNet(pl.LightningModule):
     def __init__(
         self,
         block,

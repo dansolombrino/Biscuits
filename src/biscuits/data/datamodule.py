@@ -69,20 +69,21 @@ class MetaData:
         pylogger.debug(f"Loading MetaData from '{src_path}'")
 
         # example
-        lines = (
-            (src_path / "class_vocab.tsv")
-            .read_text(encoding="utf-8")
-            .splitlines()
-        )
+        # lines = (
+        #     (src_path / "class_vocab.tsv")
+        #     .read_text(encoding="utf-8")
+        #     .splitlines()
+        # )
 
-        class_vocab = {}
-        for line in lines:
-            key, value = line.strip().split("\t")
-            class_vocab[key] = value
+        # class_vocab = {}
+        # for line in lines:
+        #     key, value = line.strip().split("\t")
+        #     class_vocab[key] = value
 
-        return MetaData(
-            class_vocab=class_vocab,
-        )
+        # return MetaData(
+        #     class_vocab=class_vocab,
+        # )
+        return MetaData()
 
 
 def collate_fn(samples: List, split: Split, metadata: MetaData):
@@ -106,22 +107,19 @@ class MyDataModule(pl.LightningDataModule):
         num_workers: DictConfig,
         batch_size: DictConfig,
         gpus: Optional[Union[List[int], str, int]],
-        # example
-        val_percentage: float,
+        validation_percentage_split: float,
     ):
         super().__init__()
         self.datasets = datasets
         self.num_workers = num_workers
         self.batch_size = batch_size
-        # https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#gpus
         self.pin_memory: bool = gpus is not None and str(gpus) != "0"
 
         self.train_dataset: Optional[Dataset] = None
-        self.val_datasets: Optional[Sequence[Dataset]] = None
+        self.validation_datasets: Optional[Sequence[Dataset]] = None
         self.test_datasets: Optional[Sequence[Dataset]] = None
 
-        # example
-        self.val_percentage: float = val_percentage
+        self.validation_percentage_split: float = validation_percentage_split
 
     @cached_property
     def metadata(self) -> MetaData:
@@ -144,6 +142,7 @@ class MyDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
+        
         transform = transforms.Compose(
             [
                 transforms.RandomHorizontalFlip(p=0.5),
@@ -162,36 +161,37 @@ class MyDataModule(pl.LightningDataModule):
 
         # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
         if (stage is None or stage == "fit") and (
-            self.train_dataset is None and self.val_datasets is None
+            self.train_dataset is None and self.validation_datasets is None
         ):
-            # example
-            mnist_train = hydra.utils.instantiate(
-                self.datasets.train_set,
-                split="train",
-                transform=transform,
-                # path=PROJECT_ROOT / "data",
+
+            train_set = hydra.utils.instantiate(
+                config=self.datasets.train_set,
+                train=True,
                 path=self.datasets.train_set.path,
+                transform=transform, # TODO pass it via hydra
             )
-            train_length = int(len(mnist_train) * (1 - self.val_percentage))
-
-            val_length = len(mnist_train) - train_length
-
-            self.train_dataset, val_dataset = random_split(
-                mnist_train, [train_length, val_length]
+            
+            train_set_length = int(
+                len(train_set) * (1 - self.validation_percentage_split)
             )
 
-            self.val_datasets = [val_dataset]
+            validation_set_length = len(train_set) - train_set_length
+
+            self.train_dataset, validation_dataset = random_split(
+                train_set, [train_set_length, validation_set_length]
+            )
+
+            self.validation_datasets = [validation_dataset]
 
         if stage is None or stage == "test":
             self.test_datasets = [
                 hydra.utils.instantiate(
-                    dataset_cfg,
-                    split="test",
-                    # path=PROJECT_ROOT / "data",
-                    path=self.datasets.test_set.path,
-                    #transform=transform,
-                )
-                for dataset_cfg in self.datasets.test_set
+                    config=test_set_cfg,
+                    train=False,
+                    # path=self.datasets.test_set.path,
+                    path=test_set_cfg.path,
+                    transform=transform,
+                ) for test_set_cfg in self.datasets.test_set
             ]
 
     def train_dataloader(self) -> DataLoader:
@@ -205,7 +205,7 @@ class MyDataModule(pl.LightningDataModule):
                 collate_fn, split="train", metadata=self.metadata
             ),
         )
-
+    
     def val_dataloader(self) -> Sequence[DataLoader]:
         return [
             DataLoader(
@@ -218,7 +218,7 @@ class MyDataModule(pl.LightningDataModule):
                     collate_fn, split="val", metadata=self.metadata
                 ),
             )
-            for dataset in self.val_datasets
+            for dataset in self.validation_datasets
         ]
 
     def test_dataloader(self) -> Sequence[DataLoader]:

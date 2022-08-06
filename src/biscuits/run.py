@@ -68,7 +68,12 @@ def run(cfg: DictConfig) -> str:
     # Instantiate datamodule
     pylogger.info(f"Instantiating <{cfg.nn.data['_target_']}>")
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(
-        cfg.nn.data, _recursive_=False
+        config=cfg.nn.data,
+        datasets=cfg.nn.data.datasets, 
+        num_workers=cfg.nn.data.num_workers,
+        batch_size=cfg.nn.data.batch_size,
+        validation_percentage_split=cfg.nn.data.validation_percentage_split,
+        _recursive_=False,
     )
 
     metadata: Optional[MetaData] = getattr(datamodule, "metadata", None)
@@ -125,7 +130,7 @@ def run(cfg: DictConfig) -> str:
         pylogger.info("Skipping testing in 'fast_dev_run' mode!")
     else:
         if (
-            "test" in cfg.nn.data.datasets
+            "test_set" in cfg.nn.data.datasets
             and trainer.checkpoint_callback.best_model_path is not None
         ):
             pylogger.info("Starting testing!")

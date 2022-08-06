@@ -52,7 +52,8 @@ class MyLightningModule(pl.LightningModule):
             self.lin_init_method,
         )
 
-        Basic_ResNet.print_num_summary(self.model)
+        pylogger.info("Instantiated model: ")
+        pylogger.info(Basic_ResNet.compute_num_summary(self.model))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Method for the forward pass.

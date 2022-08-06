@@ -19,14 +19,12 @@ class CIFAR10Dataset(Dataset):
         self,
         train: bool,
         path: str,
-        split: str,
         transform: Any,
         # **kwargs
     ):
         super().__init__()
         self.train = train
         self.path = path
-        self.split = split
         self.transform = transform
 
         self.cifar10 = CIFAR10(
@@ -55,31 +53,6 @@ class CIFAR10Dataset(Dataset):
 
     def __repr__(self) -> str:
         return f"CIFAR10Dataset(n_instances={len(self)})"
-
-
-class ImageNetDataset(Dataset):
-    def __init__(
-        self,
-        train: bool,
-        path: str,
-        # **kwargs
-    ):
-        super().__init__()
-        self.train = train
-        self.path = path
-
-        self.imagenet = ImageNet(
-            root=self.path, train=self.train, download=True
-        )
-
-    def __len__(self) -> int:
-        return len(self.imagenet)
-
-    def __getitem__(self, index: int):
-        return self.imagenet[index]
-
-    def __repr__(self) -> str:
-        return f"ImageNetDataset(n_instances={len(self)})"
 
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
