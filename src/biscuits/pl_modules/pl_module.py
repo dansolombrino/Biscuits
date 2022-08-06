@@ -39,11 +39,20 @@ class MyLightningModule(pl.LightningModule):
         self.val_accuracy = metric.clone()
         self.test_accuracy = metric.clone()
 
-        # available in self.hparams.resnet_depth as well!
+        # all of these available in self.hparams dict as well!
         self.resnet_depth = kwargs["resnet_depth"]
-        self.model = Basic_ResNet.ResNetFactory(self.resnet_depth)
+        self.conv_init_method = kwargs["conv_init_method"]
+        self.batchnorm_init_methods = kwargs["batchnorm_init_methods"]
+        self.lin_init_method = kwargs["lin_init_method"]
 
-        # Basic_ResNet.print_num_summary(self.model)
+        self.model = Basic_ResNet.ResNetFactory(
+            self.resnet_depth,
+            self.conv_init_method,
+            self.batchnorm_init_methods,
+            self.lin_init_method,
+        )
+
+        Basic_ResNet.print_num_summary(self.model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Method for the forward pass.
@@ -171,6 +180,9 @@ def main(cfg: omegaconf.DictConfig) -> None:
         optim=cfg.nn.module.optimizer,
         _recursive_=False,
         resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
+        conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
+        batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
+        lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
     )
 
 

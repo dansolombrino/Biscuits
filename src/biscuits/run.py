@@ -84,6 +84,9 @@ def run(cfg: DictConfig) -> str:
         _recursive_=False,
         metadata=metadata,
         resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
+        conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
+        batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
+        lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
     )
 
     # Instantiate the callbacks

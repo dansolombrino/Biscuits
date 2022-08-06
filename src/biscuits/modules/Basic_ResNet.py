@@ -1,4 +1,5 @@
 from glob import glob
+from typing import Mapping
 
 import torch
 import torch.nn as nn
@@ -21,6 +22,7 @@ NUM_CLASSES = 10
 FREEZE_CONV_PARAMS = True
 FREEZE_BATCHNORM_PARAMS = False
 
+
 def _count_num_parameters(param_list, trainable):
     import numpy as np
 
@@ -36,7 +38,7 @@ def _count_num_parameters(param_list, trainable):
 
 
 def _get_num_parameters(net: nn.Module, trainable: bool) -> bool:
-    
+
     param_list = net.parameters()
 
     return _count_num_parameters(param_list, trainable)
@@ -52,6 +54,7 @@ def get_num_not_trainable_parameters(net):
 
 def get_num_parameters(net):
     return _get_num_parameters(net=net, trainable=None)
+
 
 # does NOT distinguish between trainable and NON-trainable layers, for now
 def get_num_layers(net):
@@ -78,14 +81,19 @@ def print_num_summary(net):
     print("Total layers                        ", total_layers)
 
 
-def _weights_init(m):
+def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
     classname = m.__class__.__name__
     # print(classname)
 
-    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+    if isinstance(m, nn.Linear):
+        init.kaiming_normal_(m.weight)
+
+    if isinstance(m, nn.Conv2d):
+        # switch case on conv_init_method goes here
         init.kaiming_normal_(m.weight)
 
     if isinstance(m, nn.BatchNorm2d):
+        # switch case on batchnorm_init_methods goes here
         init.uniform_(m.weight, 0, 1)
         init.constant_(m.bias, 0)
 
@@ -102,8 +110,18 @@ class LambdaLayer(nn.Module):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option="A"):
+    def __init__(
+        self,
+        in_planes,
+        planes,
+        conv_init_method: str,
+        batchnorm_init_methods: Mapping,
+        stride=1,
+        option="A",
+    ):
         super(BasicBlock, self).__init__()
+
+        # --- begin 1st Convolutional layer of basic Residual Block
         self.conv1 = nn.Conv2d(
             in_planes,
             planes,
@@ -112,6 +130,7 @@ class BasicBlock(nn.Module):
             padding=1,
             bias=False,
         )
+
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(
             planes, planes, kernel_size=3, stride=1, padding=1, bias=False
@@ -152,36 +171,132 @@ class BasicBlock(nn.Module):
         return out
 
 
+def _init_layer_params(layer, init_method, init_range=None):
+
+    # using this instead of switch-case to ensure Python < 3.10 compatibility
+    if init_method.isnumeric():
+        init.constant_(layer.weight, float(init_method))
+
+    elif init_method == "he_kaiming_normal":
+        init.kaiming_normal_(layer.weight)
+
+    elif init_method == "uniform":
+        if init_range is None:
+            print(
+                "Requested uniform init, but sampling range not given... "
+                "defaulting to [0, 1]"
+            )
+
+            init_range = [0, 1]
+
+        init.uniform_(layer.weight, init_range[0], init_range[1])
+
+    # default case
+    else:
+        init.kaiming_normal_(layer.weight)
+
+
+def _init_layer_bias(layer, init_method, init_range=None):
+
+    # using this instead of switch-case to ensure Python < 3.10 compatibility
+    if init_method.isnumeric():
+        init.constant_(layer.bias, float(init_method))
+
+    # default case
+    else:
+        init.constant_(layer.bias, float(init_method))
+
+
 class ResNet(nn.Module):
     def __init__(
-        self, 
-        block, num_blocks, num_classes,
-        freeze_conv_params, freeze_batchnorm_params
+        self,
+        block,
+        num_blocks,
+        num_classes,
+        conv_freeze_params: bool,
+        batchnorm_freeze_params: bool,
+        conv_init_method: str,
+        batchnorm_init_methods: Mapping,
+        lin_init_method: str,
     ):
+        self.conv_init_method = conv_init_method
+        self.batchnorm_init_methods = batchnorm_init_methods
+
         super(ResNet, self).__init__()
         self.in_planes = 16
+
+        # --- begin 1st NN block (classic Convolutional w/ batch norm) ---
 
         self.conv1 = nn.Conv2d(
             3, 16, kernel_size=3, stride=1, padding=1, bias=False
         )
+        _init_layer_params(self.conv1, conv_init_method)
+
         self.bn1 = nn.BatchNorm2d(16)
+        _init_layer_params(self.bn1, batchnorm_init_methods["parameters"])
+        _init_layer_bias(self.bn1, batchnorm_init_methods["bias"])
 
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
+        # --- end 1st NN block (classic Convolutional w/ batch norm) ---
 
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
+        # --- begin 2nd NN block (1st residual Convolutional w/ batch norm)
 
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
+        self.layer1 = self._create_residual_layer(
+            block=block,
+            planes=16,
+            num_blocks=num_blocks[0],
+            stride=1,
+            conv_init_method=conv_init_method,
+            batchnorm_init_methods=batchnorm_init_methods,
+        )
+
+        # --- end 2nd NN block (1st residual Convolutional w/ batch norm)
+
+        # --- begin 3rd NN block (2nd residual Convolutional w/ batch norm)
+        self.layer2 = self._create_residual_layer(
+            block=block,
+            planes=32,
+            num_blocks=num_blocks[1],
+            stride=2,
+            conv_init_method=conv_init_method,
+            batchnorm_init_methods=batchnorm_init_methods,
+        )
+        # --- end 3rd NN block (2nd residual Convolutional w/ batch norm)
+
+        # --- begin 4rd NN block (3rd residual Convolutional w/ batch norm)
+        self.layer3 = self._create_residual_layer(
+            block=block,
+            planes=64,
+            num_blocks=num_blocks[2],
+            stride=2,
+            conv_init_method=conv_init_method,
+            batchnorm_init_methods=batchnorm_init_methods,
+        )
+        # --- begin 4rd NN block (3rd residual Convolutional w/ batch norm)
 
         self.linear = nn.Linear(64, num_classes)
+        _init_layer_params(self.linear, lin_init_method)
 
-        self.apply(_weights_init)
-
-
-    def _make_layer(self, block, planes, num_blocks, stride):
+    def _create_residual_layer(
+        self,
+        block,
+        planes,
+        num_blocks,
+        stride,
+        conv_init_method: str,
+        batchnorm_init_methods: Mapping,
+    ):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
+            layers.append(
+                block(
+                    in_planes=self.in_planes,
+                    planes=planes,
+                    conv_init_method="he_kaiming_normal",
+                    batchnorm_init_methods={},
+                    stride=stride,
+                )
+            )
             self.in_planes = planes * block.expansion
 
         return nn.Sequential(*layers)
@@ -191,7 +306,7 @@ class ResNet(nn.Module):
         if FREEZE_CONV_PARAMS:
             for p in self.conv1.parameters():
                 p.requires_grad = False
-        
+
         if FREEZE_BATCHNORM_PARAMS:
             for p in self.bn1.parameters():
                 p.requires_grad = False
@@ -207,59 +322,92 @@ class ResNet(nn.Module):
         return out
 
 
-def resnet14():
+def resnet14(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
-        BasicBlock, [2, 2, 2], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [2, 2, 2],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
 def resnet20():
     return ResNet(
-        BasicBlock, [3, 3, 3], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [3, 3, 3],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
 def resnet32():
     return ResNet(
-        BasicBlock, [5, 5, 5], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [5, 5, 5],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
 def resnet44():
     return ResNet(
-        BasicBlock, [7, 7, 7], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [7, 7, 7],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
 def resnet56():
     return ResNet(
-        BasicBlock, [9, 9, 9], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [9, 9, 9],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
 def resnet110():
     return ResNet(
-        BasicBlock, [18, 18, 18], NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [18, 18, 18],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
 def resnet1202():
     return ResNet(
-        BasicBlock, 
-        [200, 200, 200], 
-        NUM_CLASSES, 
-        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+        BasicBlock,
+        [200, 200, 200],
+        NUM_CLASSES,
+        FREEZE_CONV_PARAMS,
+        FREEZE_BATCHNORM_PARAMS,
     )
 
 
-def ResNetFactory(depth: int) -> ResNet:
-    return globals()["resnet" + str(depth)]()
+def ResNetFactory(
+    depth: int,
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+) -> ResNet:
+    return globals()["resnet" + str(depth)](
+        conv_init_method=conv_init_method,
+        batchnorm_init_methods=batchnorm_init_methods,
+        lin_init_method=lin_init_method,
+    )
 
 
 def test(net):
