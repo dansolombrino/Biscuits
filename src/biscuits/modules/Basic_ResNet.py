@@ -348,63 +348,93 @@ def resnet14(
     )
 
 
-def resnet20():
+def resnet20(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [3, 3, 3],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
-def resnet32():
+def resnet32(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [5, 5, 5],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
-def resnet44():
+def resnet44(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [7, 7, 7],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
-def resnet56():
+def resnet56(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [9, 9, 9],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
-def resnet110():
+def resnet110(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [18, 18, 18],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
-def resnet1202():
+def resnet1202(
+    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+):
     return ResNet(
         BasicBlock,
         [200, 200, 200],
         NUM_CLASSES,
         FREEZE_CONV_PARAMS,
         FREEZE_BATCHNORM_PARAMS,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
     )
 
 
