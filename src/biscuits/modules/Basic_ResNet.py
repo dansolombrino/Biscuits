@@ -9,6 +9,10 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch.autograd import Variable
 
+import logging
+
+pylogger = logging.getLogger(__name__)
+
 __all__ = [
     "ResNet",
     "resnet14",
@@ -21,7 +25,7 @@ __all__ = [
 ]
 
 NUM_CLASSES = 10
-FREEZE_CONV_PARAMS = True
+FREEZE_CONV_PARAMS = False
 FREEZE_BATCHNORM_PARAMS = False
 
 
@@ -189,9 +193,9 @@ def _init_layer_params(layer, init_method, init_range=None):
 
     elif init_method == "uniform":
         if init_range is None:
-            print(
+            pylogger.warning(
                 "Requested uniform init, but sampling range not given... "
-                "defaulting to [0, 1]"
+                "defaulting to [0, 1] range"
             )
 
             init_range = [0, 1]
