@@ -224,3 +224,6 @@ papers/
 
 # Reference code
 reference/
+
+# Visual Studio Code config
+.vscode/

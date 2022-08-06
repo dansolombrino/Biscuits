@@ -17,6 +17,9 @@ __all__ = [
     "resnet1202",
 ]
 
+NUM_CLASSES = 10
+FREEZE_CONV_PARAMS = False
+FREEZE_BATCHNORM_PARAMS = False
 
 def _get_num_parameters(net: nn.Module, trainable: bool) -> bool:
     import numpy as np
@@ -78,6 +81,11 @@ def _weights_init(m):
     if isinstance(m, nn.BatchNorm2d):
         init.uniform_(m.weight, 0, 1)
         init.constant_(m.bias, 0)
+
+def _freeze_params(m, freeze_conv_params, freeze_batchnorm_params):
+
+    if freeze_conv_params == True:
+
 
 
 class LambdaLayer(nn.Module):
@@ -143,7 +151,11 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(
+        self, 
+        block, num_blocks, num_classes,
+        freeze_conv_params, freeze_batchnorm_params
+    ):
         super(ResNet, self).__init__()
         self.in_planes = 16
 
@@ -162,6 +174,7 @@ class ResNet(nn.Module):
 
         self.apply(_weights_init)
 
+
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -172,7 +185,17 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+
+        if FREEZE_CONV_PARAMS:
+            for p in self.conv1.parameters():
+                p.requires_grad = False
+        
+        if FREEZE_BATCHNORM_PARAMS:
+            for p in self.bn1.parameters():
+                p.requires_grad = False
+
         out = F.relu(self.bn1(self.conv1(x)))
+
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
@@ -183,31 +206,54 @@ class ResNet(nn.Module):
 
 
 def resnet14():
-    return ResNet(BasicBlock, [2, 2, 2])
+    return ResNet(
+        BasicBlock, [2, 2, 2], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet20():
-    return ResNet(BasicBlock, [3, 3, 3])
+    return ResNet(
+        BasicBlock, [3, 3, 3], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet32():
-    return ResNet(BasicBlock, [5, 5, 5])
+    return ResNet(
+        BasicBlock, [5, 5, 5], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet44():
-    return ResNet(BasicBlock, [7, 7, 7])
+    return ResNet(
+        BasicBlock, [7, 7, 7], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet56():
-    return ResNet(BasicBlock, [9, 9, 9])
+    return ResNet(
+        BasicBlock, [9, 9, 9], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet110():
-    return ResNet(BasicBlock, [18, 18, 18])
+    return ResNet(
+        BasicBlock, [18, 18, 18], NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def resnet1202():
-    return ResNet(BasicBlock, [200, 200, 200])
+    return ResNet(
+        BasicBlock, 
+        [200, 200, 200], 
+        NUM_CLASSES, 
+        FREEZE_CONV_PARAMS, FREEZE_BATCHNORM_PARAMS
+    )
 
 
 def ResNetFactory(depth: int) -> ResNet:
