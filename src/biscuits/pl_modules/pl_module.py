@@ -43,7 +43,7 @@ class MyLightningModule(pl.LightningModule):
         self.resnet_depth = kwargs["resnet_depth"]
         self.model = Basic_ResNet.ResNetFactory(self.resnet_depth)
 
-        Basic_ResNet.print_num_summary(self.model)
+        # Basic_ResNet.print_num_summary(self.model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Method for the forward pass.
