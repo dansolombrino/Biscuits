@@ -75,9 +75,9 @@ def _weights_init(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight)
 
-    # if isinstance(m, nn.BatchNorm2d):
-    #     init.kaiming_uniform_(m.weight)
-    #     init.constant_(m.bias, 0)
+    if isinstance(m, nn.BatchNorm2d):
+        init.uniform_(m.weight, 0, 1)
+        init.constant_(m.bias, 0)
 
 
 class LambdaLayer(nn.Module):
@@ -214,9 +214,9 @@ def ResNetFactory(depth: int) -> ResNet:
     return globals()["resnet" + str(depth)]()
 
 
-# def test(net):
+def test(net):
 
-#     print_num_summary(net)
+    print_num_summary(net)
 
 
 if __name__ == "__main__":
@@ -225,6 +225,6 @@ if __name__ == "__main__":
             print(net_name)
 
             net = globals()[net_name]()
-            test(net)
+            # test(net)
 
             print()
