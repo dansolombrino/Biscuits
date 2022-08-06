@@ -41,8 +41,17 @@ callbacks:
     logging_interval: "step"
     log_momentum: False
 
-  - _target_: pytorch_lightning.callbacks.progress.tqdm_progress.TQDMProgressBar
-    refresh_rate: 20
+  # - _target_: pytorch_lightning.callbacks.progress.tqdm_progress.TQDMProgressBar
+  #   refresh_rate: 1
+
+  - _target_: pytorch_lightning.callbacks.RichProgressBar
+    leave: True
+    # refresh_rate: 1
+    # theme:
+    #   - _target_: pytorch_lightning.callbacks.progress.RichProgressBarTheme
+        # progress_bar: "green1"
+
+
 
 logging:
   upload:
