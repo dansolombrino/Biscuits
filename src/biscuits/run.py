@@ -92,6 +92,9 @@ def run(cfg: DictConfig) -> str:
         conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
         batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
         lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
+        conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
+        batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
+        lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
     )
 
     # Instantiate the callbacks

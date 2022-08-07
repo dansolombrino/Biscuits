@@ -44,12 +44,18 @@ class MyLightningModule(pl.LightningModule):
         self.conv_init_method = kwargs["conv_init_method"]
         self.batchnorm_init_methods = kwargs["batchnorm_init_methods"]
         self.lin_init_method = kwargs["lin_init_method"]
+        self.conv_freeze_parameters = kwargs["conv_freeze_parameters"]
+        self.batchnorm_freeze_parameters = kwargs["batchnorm_freeze_parameters"]
+        self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
 
         self.model = Basic_ResNet.ResNetFactory(
             self.resnet_depth,
             self.conv_init_method,
             self.batchnorm_init_methods,
             self.lin_init_method,
+            self.conv_freeze_parameters,
+            self.batchnorm_freeze_parameters,
+            self.lin_freeze_parameters,
         )
 
         pylogger.info("Instantiated model: ")
@@ -184,6 +190,9 @@ def main(cfg: omegaconf.DictConfig) -> None:
         conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
         batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
         lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
+        conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
+        batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
+        lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
     )
 
 

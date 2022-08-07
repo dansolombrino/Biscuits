@@ -605,9 +605,9 @@ def ResNetFactory(
         conv_init_method=conv_init_method,
         batchnorm_init_methods=batchnorm_init_methods,
         lin_init_method=lin_init_method,
-        conv_freeze_paramaters=conv_freeze_parameters,
-        batchnorm_freeze_paramaters=batchnorm_freeze_parameters,
-        lin_freeze_paramaters=lin_freeze_parameters,
+        conv_freeze_parameters=conv_freeze_parameters,
+        batchnorm_freeze_parameters=batchnorm_freeze_parameters,
+        lin_freeze_parameters=lin_freeze_parameters,
     )
 
 
