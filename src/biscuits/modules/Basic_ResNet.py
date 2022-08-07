@@ -1,15 +1,13 @@
+import logging
 from glob import glob
 from typing import Mapping
 
 import pytorch_lightning as pl
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 from torch.autograd import Variable
-
-import logging
 
 pylogger = logging.getLogger(__name__)
 
@@ -74,20 +72,23 @@ def get_num_layers(net):
         )
     )
 
+
 def compute_num_summary(net):
     total_params = get_num_parameters(net)
     total_trainable_params = get_num_trainable_parameters(net)
     total_not_trainable_params = get_num_not_trainable_parameters(net)
     total_layers = get_num_layers(net)
 
-    return f"Total layers                        , {total_layers}\n" + \
-           f"Total number of params              , {total_params}\n" + \
-           f"Total number of trainable params    , {total_trainable_params}\n" + \
-           f"Total number of NOT trainable params, {total_not_trainable_params}\n"
+    return (
+        f"Total layers                        : {total_layers}\n"
+        + f"Total number of params              : {total_params}\n"
+        + f"Total number of trainable params    : {total_trainable_params} --> {round(total_trainable_params/total_params * 100, 2)}%\n"
+        + f"Total number of NOT trainable params: {total_not_trainable_params} --> {round(total_not_trainable_params/total_params * 100, 2)}%\n"
+    )
+
 
 def print_num_summary(net):
     print(compute_num_summary(net))
-    
 
 
 def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
@@ -108,7 +109,7 @@ def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
 
 
 class LambdaLayer(nn.Module):
-# class LambdaLayer(pl.LightningModule):
+    # class LambdaLayer(pl.LightningModule):
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
@@ -118,21 +119,26 @@ class LambdaLayer(nn.Module):
 
 
 class BasicBlock(nn.Module):
-# class BasicBlock(pl.LightningModule):
+    # class BasicBlock(pl.LightningModule):
     expansion = 1
 
     def __init__(
         self,
         in_planes,
         planes,
+        # stride=1,
+        # option="A",
+        stride,
+        option,
         conv_init_method: str,
         batchnorm_init_methods: Mapping,
-        stride=1,
-        option="A",
+        conv_freeze_parameters: bool,
+        batchnorm_freeze_parameters: bool,
     ):
         super(BasicBlock, self).__init__()
 
         # --- begin 1st Convolutional layer of basic Residual Block
+
         self.conv1 = nn.Conv2d(
             in_planes,
             planes,
@@ -141,12 +147,35 @@ class BasicBlock(nn.Module):
             padding=1,
             bias=False,
         )
+        _init_layer_params(self.conv1, conv_init_method)
+        _freeze_layer_params(self.conv1, conv_freeze_parameters)
 
         self.bn1 = nn.BatchNorm2d(planes)
+        _init_layer_params(
+            self.bn1,
+            batchnorm_init_methods["parameters"]["method"],
+            batchnorm_init_methods["parameters"]["range"],
+        )
+        _init_layer_bias(self.bn1, batchnorm_init_methods["bias"])
+
+        # --- end 1st Convolutional layer of basic Residual Block
+
+        # --- begin 2nd Convolutional layer of basic Residual Block
         self.conv2 = nn.Conv2d(
             planes, planes, kernel_size=3, stride=1, padding=1, bias=False
         )
+        _init_layer_params(self.conv2, conv_init_method)
+        _freeze_layer_params(self.conv2, conv_freeze_parameters)
+
         self.bn2 = nn.BatchNorm2d(planes)
+        _init_layer_params(
+            self.bn2,
+            batchnorm_init_methods["parameters"]["method"],
+            batchnorm_init_methods["parameters"]["range"],
+        )
+        _init_layer_bias(self.bn2, batchnorm_init_methods["bias"])
+
+        # --- end 2nd Convolutional layer of basic Residual Block
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
@@ -163,16 +192,25 @@ class BasicBlock(nn.Module):
                     )
                 )
             elif option == "B":
-                self.shortcut = nn.Sequential(
-                    nn.Conv2d(
-                        in_planes,
-                        self.expansion * planes,
-                        kernel_size=1,
-                        stride=stride,
-                        bias=False,
-                    ),
-                    nn.BatchNorm2d(self.expansion * planes),
+                conv = nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
                 )
+                _init_layer_params(conv, conv_init_method)
+                _freeze_layer_params(conv, conv_freeze_parameters)
+
+                bn = nn.BatchNorm2d(self.expansion * planes)
+                _init_layer_params(
+                    bn,
+                    batchnorm_init_methods["parameters"]["method"],
+                    batchnorm_init_methods["parameters"]["range"],
+                )
+                _init_layer_bias(bn, batchnorm_init_methods["bias"])
+
+                self.shortcut = nn.Sequential(conv, bn)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -217,21 +255,35 @@ def _init_layer_bias(layer, init_method, init_range=None):
     else:
         init.constant_(layer.bias, float(init_method))
 
+
+def _freeze_layer_params(layer: nn.Module, should_freeze_parameters: bool):
+
+    if should_freeze_parameters:
+        for p in layer.parameters(recurse=False):
+            p.requires_grad = False
+
+
 class ResNet(nn.Module):
-# class ResNet(pl.LightningModule):
+    # class ResNet(pl.LightningModule):
     def __init__(
         self,
         block,
         num_blocks,
         num_classes,
-        conv_freeze_params: bool,
-        batchnorm_freeze_params: bool,
         conv_init_method: str,
         batchnorm_init_methods: Mapping,
         lin_init_method: str,
+        conv_freeze_parameters: bool,
+        batchnorm_freeze_parameters: bool,
+        lin_freeze_parameters: bool,
     ):
         self.conv_init_method = conv_init_method
         self.batchnorm_init_methods = batchnorm_init_methods
+        self.lin_init_method = lin_init_method
+
+        self.conv_freeze_parameters = conv_freeze_parameters
+        self.batchnorm_freeze_parameters = batchnorm_freeze_parameters
+        self.lin_freeze_parameters = lin_freeze_parameters
 
         super(ResNet, self).__init__()
         self.in_planes = 16
@@ -241,11 +293,17 @@ class ResNet(nn.Module):
         self.conv1 = nn.Conv2d(
             3, 16, kernel_size=3, stride=1, padding=1, bias=False
         )
-        _init_layer_params(self.conv1, conv_init_method)
+        _init_layer_params(self.conv1, self.conv_init_method)
+        _freeze_layer_params(self.conv1, self.conv_freeze_parameters)
 
         self.bn1 = nn.BatchNorm2d(16)
-        _init_layer_params(self.bn1, batchnorm_init_methods["parameters"])
-        _init_layer_bias(self.bn1, batchnorm_init_methods["bias"])
+        _init_layer_params(
+            self.bn1,
+            self.batchnorm_init_methods["parameters"]["method"],
+            batchnorm_init_methods["parameters"]["range"],
+        )
+        _init_layer_bias(self.bn1, self.batchnorm_init_methods["bias"])
+        _freeze_layer_params(self.bn1, self.batchnorm_freeze_parameters)
 
         # --- end 1st NN block (classic Convolutional w/ batch norm) ---
 
@@ -256,8 +314,10 @@ class ResNet(nn.Module):
             planes=16,
             num_blocks=num_blocks[0],
             stride=1,
-            conv_init_method=conv_init_method,
-            batchnorm_init_methods=batchnorm_init_methods,
+            conv_init_method=self.conv_init_method,
+            batchnorm_init_methods=self.batchnorm_init_methods,
+            conv_freeze_parameters=self.conv_freeze_parameters,
+            batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
         )
 
         # --- end 2nd NN block (1st residual Convolutional w/ batch norm)
@@ -268,8 +328,10 @@ class ResNet(nn.Module):
             planes=32,
             num_blocks=num_blocks[1],
             stride=2,
-            conv_init_method=conv_init_method,
-            batchnorm_init_methods=batchnorm_init_methods,
+            conv_init_method=self.conv_init_method,
+            batchnorm_init_methods=self.batchnorm_init_methods,
+            conv_freeze_parameters=self.conv_freeze_parameters,
+            batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
         )
         # --- end 3rd NN block (2nd residual Convolutional w/ batch norm)
 
@@ -279,13 +341,16 @@ class ResNet(nn.Module):
             planes=64,
             num_blocks=num_blocks[2],
             stride=2,
-            conv_init_method=conv_init_method,
-            batchnorm_init_methods=batchnorm_init_methods,
+            conv_init_method=self.conv_init_method,
+            batchnorm_init_methods=self.batchnorm_init_methods,
+            conv_freeze_parameters=self.conv_freeze_parameters,
+            batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
         )
         # --- begin 4rd NN block (3rd residual Convolutional w/ batch norm)
 
         self.linear = nn.Linear(64, num_classes)
         _init_layer_params(self.linear, lin_init_method)
+        _freeze_layer_params(self.linear, lin_freeze_parameters)
 
     def _create_residual_layer(
         self,
@@ -295,6 +360,8 @@ class ResNet(nn.Module):
         stride,
         conv_init_method: str,
         batchnorm_init_methods: Mapping,
+        conv_freeze_parameters: bool,
+        batchnorm_freeze_parameters: bool,
     ):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -303,9 +370,12 @@ class ResNet(nn.Module):
                 block(
                     in_planes=self.in_planes,
                     planes=planes,
-                    conv_init_method="he_kaiming_normal",
-                    batchnorm_init_methods={},
                     stride=stride,
+                    option="A",
+                    conv_init_method=conv_init_method,
+                    batchnorm_init_methods=batchnorm_init_methods,
+                    conv_freeze_parameters=conv_freeze_parameters,
+                    batchnorm_freeze_parameters=batchnorm_freeze_parameters,
                 )
             )
             self.in_planes = planes * block.expansion
@@ -334,107 +404,191 @@ class ResNet(nn.Module):
 
 
 def resnet14(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [2, 2, 2],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet20(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [3, 3, 3],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet32(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [5, 5, 5],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet44(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [7, 7, 7],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet56(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [9, 9, 9],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet110(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [18, 18, 18],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
+    )
+
+
+def resnet218(
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
+):
+    return ResNet(
+        BasicBlock,
+        [36, 36, 36],
+        NUM_CLASSES,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
+    )
+
+
+def resnet392(
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
+):
+    return ResNet(
+        BasicBlock,
+        [54, 54, 54],
+        NUM_CLASSES,
+        conv_init_method,
+        batchnorm_init_methods,
+        lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
 def resnet1202(
-    conv_init_method: str, batchnorm_init_methods: Mapping, lin_init_method: str
+    conv_init_method: str,
+    batchnorm_init_methods: Mapping,
+    lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ):
     return ResNet(
         BasicBlock,
         [200, 200, 200],
         NUM_CLASSES,
-        FREEZE_CONV_PARAMS,
-        FREEZE_BATCHNORM_PARAMS,
         conv_init_method,
         batchnorm_init_methods,
         lin_init_method,
+        conv_freeze_parameters,
+        batchnorm_freeze_parameters,
+        lin_freeze_parameters,
     )
 
 
@@ -443,11 +597,17 @@ def ResNetFactory(
     conv_init_method: str,
     batchnorm_init_methods: Mapping,
     lin_init_method: str,
+    conv_freeze_parameters: bool,
+    batchnorm_freeze_parameters: bool,
+    lin_freeze_parameters: bool,
 ) -> ResNet:
     return globals()["resnet" + str(depth)](
         conv_init_method=conv_init_method,
         batchnorm_init_methods=batchnorm_init_methods,
         lin_init_method=lin_init_method,
+        conv_freeze_paramaters=conv_freeze_parameters,
+        batchnorm_freeze_paramaters=batchnorm_freeze_parameters,
+        lin_freeze_paramaters=lin_freeze_parameters,
     )
 
 
@@ -461,7 +621,17 @@ if __name__ == "__main__":
         if net_name.startswith("resnet"):
             print(net_name)
 
-            net = globals()[net_name]()
-            # test(net)
+            net = globals()[net_name](
+                conv_init_method="he_kaiming_normal",
+                batchnorm_init_methods={
+                    "parameters": {"method": "uniform", "range": [0, 1]},
+                    "bias": "0",
+                },
+                lin_init_method="he_kaiming_normal",
+                conv_freeze_parameters=True,
+                batchnorm_freeze_parameters=False,
+                lin_freeze_parameters=False,
+            )
+            test(net)
 
             print()

@@ -38,16 +38,24 @@ module:
   model:
     basic_resnet:
       _target_: biscuits.modules.Basic_ResNet
-      
+
       resnet_depth: 14
-      
+
       conv_init_method: "he_kaiming_normal"
-      
+
       batchnorm_init_methods:
-        parameters: "uniform"
+        parameters:
+          method: "uniform"
+          range: [0, 1]
         bias: "0"
-      
+
       lin_init_method: "he_kaiming_normal"
+
+      conv_freeze_params: False
+
+      batchnorm_freeze_params: False
+
+      lin_freeze_params: False
 
   optimizer:
     #  Adam-oriented deep learning
