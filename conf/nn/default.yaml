@@ -51,11 +51,11 @@ module:
 
       lin_init_method: "he_kaiming_normal"
 
-      conv_freeze_params: False
+      conv_freeze_parameters: True
 
-      batchnorm_freeze_params: False
+      batchnorm_freeze_parameters: False
 
-      lin_freeze_params: False
+      lin_freeze_parameters: True
 
   optimizer:
     #  Adam-oriented deep learning
