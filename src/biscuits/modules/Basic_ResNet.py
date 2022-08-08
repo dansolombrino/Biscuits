@@ -14,9 +14,9 @@ pylogger = logging.getLogger(__name__)
 __all__ = [
     "ResNet",
     "resnet14",
-    "resnet20",
+    # "resnet20",
     "resnet32",
-    "resnet44",
+    # "resnet44",
     "resnet56",
     "resnet110",
     "resnet1202",
@@ -479,6 +479,8 @@ def resnet32(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability,
+    dropout2d_probability
 ):
     return ResNet(
         BasicBlock,
@@ -490,6 +492,8 @@ def resnet32(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 """not used in tests"""
@@ -521,6 +525,8 @@ def resnet56(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -532,6 +538,8 @@ def resnet56(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 
@@ -542,6 +550,8 @@ def resnet110(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -553,6 +563,8 @@ def resnet110(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 
@@ -563,6 +575,8 @@ def resnet218(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -574,6 +588,8 @@ def resnet218(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 
@@ -584,6 +600,8 @@ def resnet392(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -595,6 +613,8 @@ def resnet392(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 
@@ -605,6 +625,8 @@ def resnet1202(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -616,6 +638,8 @@ def resnet1202(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
 
