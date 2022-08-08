@@ -57,6 +57,9 @@ module:
 
       lin_freeze_parameters: True
 
+      dropout_probability: 0.0
+      dropout2d_probability: 0.0
+
   optimizer:
     #  Adam-oriented deep learning
     # _target_: torch.optim.Adam

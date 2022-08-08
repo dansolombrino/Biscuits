@@ -82,6 +82,12 @@ def run(cfg: DictConfig) -> str:
             f"No 'metadata' attribute found in datamodule <{datamodule.__class__.__name__}>"
         )
 
+    # TODO 
+    # to give the ability of picking model from Hydra conf, use a switch
+    # case here.
+    # Switch case on a param in Hydra, which stores the name of the model you'd
+    # like to use
+    # for example, place a str ID of the model in cfg.nn.model_name
     # Instantiate model
     pylogger.info(f"Instantiating <{cfg.nn.module['_target_']}>")
     model: pl.LightningModule = hydra.utils.instantiate(
@@ -95,6 +101,8 @@ def run(cfg: DictConfig) -> str:
         conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
         batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
         lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
+        dropout_probability=cfg.nn.module.model.basic_resnet.dropout_probability,
+        dropout2d_probability=cfg.nn.module.model.basic_resnet.dropout2d_probability
     )
 
     # Instantiate the callbacks

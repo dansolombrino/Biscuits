@@ -47,6 +47,9 @@ class MyLightningModule(pl.LightningModule):
         self.conv_freeze_parameters = kwargs["conv_freeze_parameters"]
         self.batchnorm_freeze_parameters = kwargs["batchnorm_freeze_parameters"]
         self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
+        self.dropout_probability = kwargs["dropout_probability"]
+        self.dropout2d_probability = kwargs["dropout2d_probability"]
+
 
         self.model = Basic_ResNet.ResNetFactory(
             self.resnet_depth,
@@ -56,6 +59,8 @@ class MyLightningModule(pl.LightningModule):
             self.conv_freeze_parameters,
             self.batchnorm_freeze_parameters,
             self.lin_freeze_parameters,
+            self.dropout_probability,
+            self.dropout2d_probability
         )
 
         pylogger.info("Instantiated model: ")
@@ -193,6 +198,7 @@ def main(cfg: omegaconf.DictConfig) -> None:
         conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
         batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
         lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
+        dropout_probability=cfg.nn.module.model.basic_resnet.dropout_probability
     )
 
 

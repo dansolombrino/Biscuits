@@ -91,31 +91,17 @@ def print_num_summary(net):
     print(compute_num_summary(net))
 
 
-def _weights_init(m, conv_init_method: str, batchnorm_init_methods):
-    classname = m.__class__.__name__
-    # print(classname)
-
-    if isinstance(m, nn.Linear):
-        init.kaiming_normal_(m.weight)
-
-    if isinstance(m, nn.Conv2d):
-        # switch case on conv_init_method goes here
-        init.kaiming_normal_(m.weight)
-
-    if isinstance(m, nn.BatchNorm2d):
-        # switch case on batchnorm_init_methods goes here
-        init.uniform_(m.weight, 0, 1)
-        init.constant_(m.bias, 0)
-
-
 class LambdaLayer(nn.Module):
     # class LambdaLayer(pl.LightningModule):
-    def __init__(self, lambd):
+    def __init__(self, lambd, dropout2d_probability: float):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
+        self.dropout2d = nn.Dropout2d(dropout2d_probability)
 
     def forward(self, x):
-        return self.lambd(x)
+        out = self.lambd(x)
+        
+        return self.dropout2d(out)
 
 
 class BasicBlock(nn.Module):
@@ -134,6 +120,8 @@ class BasicBlock(nn.Module):
         batchnorm_init_methods: Mapping,
         conv_freeze_parameters: bool,
         batchnorm_freeze_parameters: bool,
+        dropout_probability: float,
+        dropout2d_probability: float
     ):
         super(BasicBlock, self).__init__()
 
@@ -157,6 +145,7 @@ class BasicBlock(nn.Module):
             batchnorm_init_methods["parameters"]["range"],
         )
         _init_layer_bias(self.bn1, batchnorm_init_methods["bias"])
+        _freeze_layer_params(self.bn1, batchnorm_freeze_parameters)
 
         # --- end 1st Convolutional layer of basic Residual Block
 
@@ -174,9 +163,13 @@ class BasicBlock(nn.Module):
             batchnorm_init_methods["parameters"]["range"],
         )
         _init_layer_bias(self.bn2, batchnorm_init_methods["bias"])
+        _freeze_layer_params(self.bn2, batchnorm_freeze_parameters)
+
 
         # --- end 2nd Convolutional layer of basic Residual Block
 
+        # --- begin residual connection
+        
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
             if option == "A":
@@ -189,7 +182,8 @@ class BasicBlock(nn.Module):
                         (0, 0, 0, 0, planes // 4, planes // 4),
                         "constant",
                         0,
-                    )
+                    ), 
+                    dropout2d_probability=dropout2d_probability
                 )
             elif option == "B":
                 conv = nn.Conv2d(
@@ -209,14 +203,27 @@ class BasicBlock(nn.Module):
                     batchnorm_init_methods["parameters"]["range"],
                 )
                 _init_layer_bias(bn, batchnorm_init_methods["bias"])
+                _freeze_layer_params(self.bn, batchnorm_freeze_parameters)
+
 
                 self.shortcut = nn.Sequential(conv, bn)
 
+        # --- end residual connection
+
+        self.dropout2d = nn.Dropout2d(p = dropout2d_probability)
+        self.dropout = nn.Dropout(p=dropout_probability)
+    
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = self.dropout2d(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
         out += self.shortcut(x)
         out = F.relu(out)
+        out = self.dropout2d(out)
         return out
 
 
@@ -276,6 +283,8 @@ class ResNet(nn.Module):
         conv_freeze_parameters: bool,
         batchnorm_freeze_parameters: bool,
         lin_freeze_parameters: bool,
+        dropout_probability: float,
+        dropout2d_probability: float
     ):
         self.conv_init_method = conv_init_method
         self.batchnorm_init_methods = batchnorm_init_methods
@@ -285,7 +294,14 @@ class ResNet(nn.Module):
         self.batchnorm_freeze_parameters = batchnorm_freeze_parameters
         self.lin_freeze_parameters = lin_freeze_parameters
 
+        self.dropout_probability = dropout_probability
+        self.dropout2d_probability = dropout2d_probability
+
         super(ResNet, self).__init__()
+
+        self.dropout2d = nn.Dropout2d(p = self.dropout2d_probability)
+        self.dropout = nn.Dropout(p = self.dropout_probability)
+        
         self.in_planes = 16
 
         # --- begin 1st NN block (classic Convolutional w/ batch norm) ---
@@ -318,6 +334,8 @@ class ResNet(nn.Module):
             batchnorm_init_methods=self.batchnorm_init_methods,
             conv_freeze_parameters=self.conv_freeze_parameters,
             batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
+            dropout_probability=self.dropout_probability,
+            dropout2d_probability=self.dropout2d_probability
         )
 
         # --- end 2nd NN block (1st residual Convolutional w/ batch norm)
@@ -332,6 +350,8 @@ class ResNet(nn.Module):
             batchnorm_init_methods=self.batchnorm_init_methods,
             conv_freeze_parameters=self.conv_freeze_parameters,
             batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
+            dropout_probability=self.dropout_probability,
+            dropout2d_probability=self.dropout2d_probability
         )
         # --- end 3rd NN block (2nd residual Convolutional w/ batch norm)
 
@@ -345,6 +365,8 @@ class ResNet(nn.Module):
             batchnorm_init_methods=self.batchnorm_init_methods,
             conv_freeze_parameters=self.conv_freeze_parameters,
             batchnorm_freeze_parameters=self.batchnorm_freeze_parameters,
+            dropout_probability=self.dropout_probability,
+            dropout2d_probability=dropout2d_probability
         )
         # --- begin 4rd NN block (3rd residual Convolutional w/ batch norm)
 
@@ -362,6 +384,8 @@ class ResNet(nn.Module):
         batchnorm_init_methods: Mapping,
         conv_freeze_parameters: bool,
         batchnorm_freeze_parameters: bool,
+        dropout_probability: float,
+        dropout2d_probability: float
     ):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -376,6 +400,8 @@ class ResNet(nn.Module):
                     batchnorm_init_methods=batchnorm_init_methods,
                     conv_freeze_parameters=conv_freeze_parameters,
                     batchnorm_freeze_parameters=batchnorm_freeze_parameters,
+                    dropout_probability=dropout_probability,
+                    dropout2d_probability=dropout2d_probability
                 )
             )
             self.in_planes = planes * block.expansion
@@ -383,23 +409,20 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-
-        if FREEZE_CONV_PARAMS:
-            for p in self.conv1.parameters():
-                p.requires_grad = False
-
-        if FREEZE_BATCHNORM_PARAMS:
-            for p in self.bn1.parameters():
-                p.requires_grad = False
-
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = self.dropout2d(out)
 
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
+
         out = F.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
         out = self.linear(out)
+        out = self.dropout(out)
+        
         return out
 
 
@@ -410,6 +433,8 @@ def resnet14(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ):
     return ResNet(
         BasicBlock,
@@ -421,28 +446,30 @@ def resnet14(
         conv_freeze_parameters,
         batchnorm_freeze_parameters,
         lin_freeze_parameters,
+        dropout_probability,
+        dropout2d_probability
     )
 
-
-def resnet20(
-    conv_init_method: str,
-    batchnorm_init_methods: Mapping,
-    lin_init_method: str,
-    conv_freeze_parameters: bool,
-    batchnorm_freeze_parameters: bool,
-    lin_freeze_parameters: bool,
-):
-    return ResNet(
-        BasicBlock,
-        [3, 3, 3],
-        NUM_CLASSES,
-        conv_init_method,
-        batchnorm_init_methods,
-        lin_init_method,
-        conv_freeze_parameters,
-        batchnorm_freeze_parameters,
-        lin_freeze_parameters,
-    )
+"""not used in tests"""
+# def resnet20(
+#     conv_init_method: str,
+#     batchnorm_init_methods: Mapping,
+#     lin_init_method: str,
+#     conv_freeze_parameters: bool,
+#     batchnorm_freeze_parameters: bool,
+#     lin_freeze_parameters: bool,
+# ):
+#     return ResNet(
+#         BasicBlock,
+#         [3, 3, 3],
+#         NUM_CLASSES,
+#         conv_init_method,
+#         batchnorm_init_methods,
+#         lin_init_method,
+#         conv_freeze_parameters,
+#         batchnorm_freeze_parameters,
+#         lin_freeze_parameters,
+#     )
 
 
 def resnet32(
@@ -465,26 +492,26 @@ def resnet32(
         lin_freeze_parameters,
     )
 
-
-def resnet44(
-    conv_init_method: str,
-    batchnorm_init_methods: Mapping,
-    lin_init_method: str,
-    conv_freeze_parameters: bool,
-    batchnorm_freeze_parameters: bool,
-    lin_freeze_parameters: bool,
-):
-    return ResNet(
-        BasicBlock,
-        [7, 7, 7],
-        NUM_CLASSES,
-        conv_init_method,
-        batchnorm_init_methods,
-        lin_init_method,
-        conv_freeze_parameters,
-        batchnorm_freeze_parameters,
-        lin_freeze_parameters,
-    )
+"""not used in tests"""
+# def resnet44(
+#     conv_init_method: str,
+#     batchnorm_init_methods: Mapping,
+#     lin_init_method: str,
+#     conv_freeze_parameters: bool,
+#     batchnorm_freeze_parameters: bool,
+#     lin_freeze_parameters: bool,
+# ):
+#     return ResNet(
+#         BasicBlock,
+#         [7, 7, 7],
+#         NUM_CLASSES,
+#         conv_init_method,
+#         batchnorm_init_methods,
+#         lin_init_method,
+#         conv_freeze_parameters,
+#         batchnorm_freeze_parameters,
+#         lin_freeze_parameters,
+#     )
 
 
 def resnet56(
@@ -600,6 +627,8 @@ def ResNetFactory(
     conv_freeze_parameters: bool,
     batchnorm_freeze_parameters: bool,
     lin_freeze_parameters: bool,
+    dropout_probability: float,
+    dropout2d_probability: float
 ) -> ResNet:
     return globals()["resnet" + str(depth)](
         conv_init_method=conv_init_method,
@@ -608,6 +637,8 @@ def ResNetFactory(
         conv_freeze_parameters=conv_freeze_parameters,
         batchnorm_freeze_parameters=batchnorm_freeze_parameters,
         lin_freeze_parameters=lin_freeze_parameters,
+        dropout_probability=dropout_probability,
+        dropout2d_probability=dropout2d_probability
     )
 
 
@@ -631,6 +662,8 @@ if __name__ == "__main__":
                 conv_freeze_parameters=True,
                 batchnorm_freeze_parameters=False,
                 lin_freeze_parameters=False,
+                dropout_probability=0.0,
+                dropout2d_probability=0.0
             )
             test(net)
 
