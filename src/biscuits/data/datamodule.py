@@ -100,7 +100,8 @@ def collate_fn(samples: List, split: Split, metadata: MetaData):
     return default_collate(samples)
 
 
-class MyDataModule(pl.LightningDataModule):
+# class My DataModule(pl.LightningDataModule):
+class CIFAR10DataModule(pl.LightningDataModule):
     def __init__(
         self,
         datasets: DictConfig,

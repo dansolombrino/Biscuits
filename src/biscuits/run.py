@@ -66,13 +66,19 @@ def run(cfg: DictConfig) -> str:
     cfg.core.tags = enforce_tags(cfg.core.get("tags", None))
 
     # Instantiate datamodule
-    pylogger.info(f"Instantiating <{cfg.nn.data['_target_']}>")
+    pylogger.info(f"Instantiating <{cfg.data['_target_']}>")
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(
-        config=cfg.nn.data,
-        datasets=cfg.nn.data.datasets, 
-        num_workers=cfg.nn.data.num_workers,
-        batch_size=cfg.nn.data.batch_size,
-        validation_percentage_split=cfg.nn.data.validation_percentage_split,
+        # config=cfg.nn.data,
+        # datasets=cfg.nn.data.datasets, 
+        # num_workers=cfg.nn.data.num_workers,
+        # batch_size=cfg.nn.data.batch_size,
+        # validation_percentage_split=cfg.nn.data.validation_percentage_split,
+        # _recursive_=False,
+        config=cfg.data,
+        datasets=cfg.data.datasets, 
+        num_workers=cfg.data.num_workers,
+        batch_size=cfg.data.batch_size,
+        validation_percentage_split=cfg.data.validation_percentage_split,
         _recursive_=False,
     )
 
@@ -90,20 +96,34 @@ def run(cfg: DictConfig) -> str:
     # for example, place a str ID of the model in cfg.nn.model_name
     # Instantiate model
     pylogger.info(f"Instantiating <{cfg.nn.module['_target_']}>")
-    model: pl.LightningModule = hydra.utils.instantiate(
-        cfg.nn.module,
-        _recursive_=False,
-        metadata=metadata,
-        resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
-        conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
-        batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
-        lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
-        conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
-        batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
-        lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
-        dropout_probability=cfg.nn.module.model.basic_resnet.dropout_probability,
-        dropout2d_probability=cfg.nn.module.model.basic_resnet.dropout2d_probability
-    )
+
+    if "BasicResNetLightningModule" in cfg.nn.module['_target_']:
+
+        model: pl.LightningModule = hydra.utils.instantiate(
+            config=cfg.nn.module,
+            _recursive_=False,
+            metadata=metadata,
+            resnet_depth=cfg.nn.model.resnet_depth,
+            conv_init_method=cfg.nn.model.conv_init_method,
+            batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+            lin_init_method=cfg.nn.model.lin_init_method,
+            conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+            batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+            lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+            dropout_probability=cfg.nn.model.dropout_probability,
+            dropout2d_probability=cfg.nn.model.dropout2d_probability,
+            optimizer=cfg.nn.model.optimizer
+        )
+    
+    # default case
+    else: 
+        pylogger.error(f"No LighningModule named {cfg.nn.module['_target_']}")
+        pylogger.error(
+            "Please check your Hydra configuration and restart the run"
+        )
+        pylogger.error("An error may occur down the line...")
+        
+
 
     # Instantiate the callbacks
     template_core: NNTemplateCore = NNTemplateCore(
@@ -141,7 +161,8 @@ def run(cfg: DictConfig) -> str:
         pylogger.info("Skipping testing in 'fast_dev_run' mode!")
     else:
         if (
-            "test_set" in cfg.nn.data.datasets
+            # "test_set" in cfg.nn.data.datasets
+            "test_set" in cfg.data.datasets
             and trainer.checkpoint_callback.best_model_path is not None
         ):
             pylogger.info("Starting testing!")

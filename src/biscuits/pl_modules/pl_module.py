@@ -19,7 +19,9 @@ from biscuits.modules.module import CNN
 pylogger = logging.getLogger(__name__)
 
 
-class MyLightningModule(pl.LightningModule):
+# class MyLightningModule(pl.LightningModule):
+class BasicResNetLightningModule(pl.LightningModule):
+
     logger: NNLogger
 
     def __init__(
@@ -39,16 +41,15 @@ class MyLightningModule(pl.LightningModule):
         self.val_accuracy = metric.clone()
         self.test_accuracy = metric.clone()
 
-        # all of these available in self.hparams dict as well!
-        self.resnet_depth = kwargs["resnet_depth"]
-        self.conv_init_method = kwargs["conv_init_method"]
-        self.batchnorm_init_methods = kwargs["batchnorm_init_methods"]
-        self.lin_init_method = kwargs["lin_init_method"]
-        self.conv_freeze_parameters = kwargs["conv_freeze_parameters"]
-        self.batchnorm_freeze_parameters = kwargs["batchnorm_freeze_parameters"]
-        self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
-        self.dropout_probability = kwargs["dropout_probability"]
-        self.dropout2d_probability = kwargs["dropout2d_probability"]
+        self.resnet_depth = self.hparams["resnet_depth"]
+        self.conv_init_method = self.hparams["conv_init_method"]
+        self.batchnorm_init_methods = self.hparams["batchnorm_init_methods"]
+        self.lin_init_method = self.hparams["lin_init_method"]
+        self.conv_freeze_parameters = self.hparams["conv_freeze_parameters"]
+        self.batchnorm_freeze_parameters = self.hparams["batchnorm_freeze_parameters"]
+        self.lin_freeze_parameters = self.hparams["lin_freeze_parameters"]
+        self.dropout_probability = self.hparams["dropout_probability"]
+        self.dropout2d_probability = self.hparams["dropout2d_probability"]
 
 
         self.model = Basic_ResNet.ResNetFactory(
@@ -186,12 +187,10 @@ def main(cfg: omegaconf.DictConfig) -> None:
         cfg: the hydra configuration
     """
     model: pl.LightningModule = hydra.utils.instantiate(
-        # cfg.model,
         cfg.nn.module,
-        # optim=cfg.optim,
         optim=cfg.nn.module.optimizer,
         _recursive_=False,
-        resnet_depth=cfg.nn.module.model.basic_resnet.resnet_depth,
+        resnet_depth=cfg.module.model.basic_resnet.resnet_depth,
         conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
         batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
         lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,

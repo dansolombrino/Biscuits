@@ -3,12 +3,13 @@ core:
   project_name: biscuits
   storage_dir: ${oc.env:PROJECT_ROOT}/storage
   version: 0.0.1
-  tags: null
+  tags: ["Biscuits", "BatchNorm", "CNN", "ResNet"]
 
 defaults:
   - hydra: default
-  - nn: default
+  - nn: BasicResNet
   - train: default
+  - data: CIFAR10
   - _self_ # as last argument to allow the override of parameters via this main config
 #    Decomment this parameter to get parallel job running
 #  - hydra/launcher: joblib

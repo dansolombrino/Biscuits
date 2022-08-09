@@ -1,0 +1,32 @@
+_target_: biscuits.data.datamodule.CIFAR10DataModule
+
+datasets:
+  train_set:
+    _target_: biscuits.data.dataset.CIFAR10Dataset
+    path: ${oc.env:TRAIN_DATASET_PATH}
+    train: True
+
+  val_set:
+    - _target_: biscuits.data.dataset.CIFAR10Dataset
+      path: ${oc.env:VAL_DATASET_PATH}
+      train: False
+
+  test_set:
+    - _target_: biscuits.data.dataset.CIFAR10Dataset
+      path: ${oc.env:TEST_DATASET_PATH}
+      train: False
+
+gpus: ${train.trainer.gpus}
+
+num_workers:
+  train: 16
+  val: 8
+  test: 8
+
+batch_size:
+  train: 128
+  val: 128
+  test: 128
+
+# how much percentage of train split to reserve for validation
+validation_percentage_split: 0.2
