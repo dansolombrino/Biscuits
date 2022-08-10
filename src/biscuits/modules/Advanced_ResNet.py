@@ -486,39 +486,39 @@ class ResNet(nn.Module):
         
         # --- Begin 2nd convolutional (residual) layer of Advanced ResNet --- #
         self.layer1 = self._make_layer(
-            transfer_learning, 
-            transfer_learning, 
-            global_params.block, 
-            64, 
-            layers[0]
+            conv_freeze_parameters=transfer_learning, 
+            lin_freeze_parameters=transfer_learning, 
+            block=global_params.block, 
+            planes=64, 
+            blocks=layers[0]
         )
         
         self.layer2 = self._make_layer(
-            transfer_learning, 
-            transfer_learning,
-            global_params.block, 
-            128, 
-            layers[1], 
+            conv_freeze_parameters=transfer_learning, 
+            lin_freeze_parameters=transfer_learning,
+            block=global_params.block, 
+            planes=128, 
+            blocks=layers[1], 
             stride=2,
             dilate=replace_stride_with_dilation[0]
         )
         
         self.layer3 = self._make_layer(
-            transfer_learning, 
-            transfer_learning,
-            global_params.block, 
-            256, 
-            layers[2], 
+            conv_freeze_parameters=transfer_learning, 
+            lin_freeze_parameters=transfer_learning,
+            block=global_params.block, 
+            planes=256, 
+            blocks=layers[2], 
             stride=2,
             dilate=replace_stride_with_dilation[1]
         )
         
         self.layer4 = self._make_layer(
-            transfer_learning, 
-            transfer_learning,
-            global_params.block, 
-            512, 
-            layers[3], 
+            conv_freeze_parameters=transfer_learning, 
+            lin_freeze_parameters=transfer_learning,
+            block=global_params.block, 
+            planes=512, 
+            blocks=layers[3], 
             stride=2,
             dilate=replace_stride_with_dilation[2]
         )
@@ -528,9 +528,12 @@ class ResNet(nn.Module):
         # Initializing the Transfer Learning layer directly in the constructor
         # This is safe to do, since the logic to get the NN to perform Transfer 
         # Learning works as follows:
-        #    Call the factory method "from_pretrained", which instantiate a 
-        #    ResNet-D, where D is the depth and then proceeds to load 
+        #    Call the factory method "from_pretrained", which instantiates a 
+        #    ResNet-D (D --> ResNet depth).
+        #  
+        #    Factory method then proceeds to load 
         #    pre-trained weights via the "load_pretrained_weights".
+        # 
         #    This method allows to choose whether to load the fc layer or not.
         #    So, choosing to NOT load pre-trained weights for the final fully
         #    connected layer allows us to initialize it for Transfer Learning 
