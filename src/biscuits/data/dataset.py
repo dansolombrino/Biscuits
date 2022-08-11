@@ -54,14 +54,7 @@ class CIFAR10Dataset(Dataset):
     def __repr__(self) -> str:
         return f"CIFAR10Dataset(n_instances={len(self)})"
 
-
-@hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
-def main(cfg: omegaconf.DictConfig) -> None:
-    """Debug main to quickly develop the Dataset.
-
-    Args:
-        cfg: the hydra configuration
-    """
+def _debug_CIFAR10Dataset(): 
 
     transform = transforms.Compose(
             [
@@ -94,7 +87,15 @@ def main(cfg: omegaconf.DictConfig) -> None:
             "/tmp/augmented_imgs/" + str(i) + "_og.png"
         )
 
-    # print(type(dataset[0][1]))
+    print(type(dataset[0][1]))
+
+@hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
+def main(cfg: omegaconf.DictConfig) -> None:
+    """Debug main to quickly develop the Dataset.
+
+    Args:
+        cfg: the hydra configuration
+    """
 
 
 if __name__ == "__main__":
