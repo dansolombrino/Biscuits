@@ -7,7 +7,7 @@ core:
 
 defaults:
   - hydra: default
-  - nn: BasicResNet
+  - nn: AdvancedResNet
   - train: default
   - data: AntsVsBees
   - _self_ # as last argument to allow the override of parameters via this main config

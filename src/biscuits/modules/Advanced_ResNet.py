@@ -422,16 +422,17 @@ import torch.nn as nn
 # from .utils import resnet_params
 
 
-class ResNet(nn.Module):
+class Advanced_ResNet(nn.Module):
 
     def __init__(
         self, 
         layers, 
         global_params,
         lin_init_method: bool,
+        lin_freeze_parameters: bool,
         transfer_learning: bool
     ):
-        super(ResNet, self).__init__()
+        super(Advanced_ResNet, self).__init__()
         assert isinstance(layers, tuple), "blocks_args should be a tuple"
         assert len(layers) > 0, "layers must be greater than 0"
 
@@ -548,6 +549,10 @@ class ResNet(nn.Module):
                 init_method=lin_init_method
             )
             _init_layer_bias(layer=self.fc, init_method="0")
+        _freeze_layer_params(
+            self.fc, 
+            should_freeze_parameters=lin_freeze_parameters
+        )
 
         # This is NOT necessary anymore, since:
         # - Convolutional Residual blocks use pre-trained weights, as per Transfer
@@ -677,13 +682,23 @@ class ResNet(nn.Module):
         model_name, 
         override_params,
         lin_init_method,
+        lin_freeze_parameters,
         transfer_learning
     ):
         cls._check_model_name_is_valid(model_name)
         
-        layers, global_params = get_model_params(model_name, override_params)
+        layers, global_params = get_model_params(
+            model_name, 
+            override_params
+        )
         
-        return cls(layers, global_params, lin_init_method, transfer_learning)
+        return cls(
+            layers, 
+            global_params, 
+            lin_init_method, 
+            lin_freeze_parameters,
+            transfer_learning
+        )
 
     @classmethod
     def from_pretrained(
@@ -691,6 +706,7 @@ class ResNet(nn.Module):
         model_name, 
         num_classes: int,
         lin_init_method: str,
+        lin_freeze_parameters: bool,
         transfer_learning: bool
     ):
         model = cls.from_name(
@@ -699,6 +715,7 @@ class ResNet(nn.Module):
                 "num_classes": num_classes
             },
             lin_init_method=lin_init_method,
+            lin_freeze_parameters=lin_freeze_parameters,
             transfer_learning=transfer_learning
         )
         
@@ -733,7 +750,7 @@ class ResNet(nn.Module):
 
 if __name__ == "__main__":
     
-    net = ResNet.from_pretrained(
+    net = Advanced_ResNet.from_pretrained(
         model_name="resnet18", 
         num_classes=2, 
         lin_init_method="he_kaiming_uniform",

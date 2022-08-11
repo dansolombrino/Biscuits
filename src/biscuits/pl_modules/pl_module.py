@@ -14,8 +14,10 @@ from nn_core.common import PROJECT_ROOT
 from nn_core.model_logging import NNLogger
 
 from biscuits.data.datamodule import MetaData
-from biscuits.modules import Basic_ResNet
+from biscuits.modules import Basic_ResNet, Advanced_ResNet
 from biscuits.modules.module import CNN
+
+from biscuits.modules.Advanced_ResNet import Advanced_ResNet, compute_num_summary
 
 pylogger = logging.getLogger(__name__)
 
@@ -210,6 +212,77 @@ def _debug_BasicResNetLighningModule(cfg: omegaconf.DictConfig):
 
     print(model)
 
+
+class AdvancedResNetLightningModule(pl.LightningModule):
+    logger: NNLogger
+
+    def __init__(
+        self, metadata: Optional[MetaData] = None, *args, **kwargs
+    ) -> None:
+        super().__init__()
+
+        print(kwargs)
+
+        # Populate self.hparams with args and kwargs automagically!
+        # We want to skip metadata since it is saved separately by the NNCheckpointIO object.
+        # Be careful when modifying this instruction. If in doubt, don't do it :]
+        self.save_hyperparameters(logger=False, ignore=("metadata",))
+
+        # self.metadata = metadata
+
+        metric = torchmetrics.Accuracy()
+        self.train_accuracy = metric.clone()
+        self.val_accuracy = metric.clone()
+        self.test_accuracy = metric.clone()
+
+        self.resnet_depth = kwargs["resnet_depth"]
+        
+        self.lin_init_method = kwargs["lin_init_method"]
+        self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
+        
+        self.dropout_probability = kwargs["dropout_probability"]
+
+        self.transfer_learning = kwargs["transfer_learning"]
+
+        self.optimizer = kwargs["optimizer"]
+        try:
+            self.lr_scheduler = kwargs["lr_scheduler"]
+        except KeyError:
+            self.lr_scheduler = None
+
+        self.model = Advanced_ResNet.from_pretrained(
+            model_name="resnet" + str(self.resnet_depth), 
+            num_classes=2, 
+            lin_init_method=self.lin_init_method,
+            lin_freeze_parameters=self.lin_freeze_parameters,
+            transfer_learning=self.transfer_learning
+        )
+
+        pylogger.info("Instantiated model: ")
+        pylogger.info(compute_num_summary(self.model))
+
+
+def _debug_AdvancedResNetLighningModule(cfg: omegaconf.DictConfig):
+    
+    model: pl.LightningModule = hydra.utils.instantiate(
+        config=cfg.nn.module,
+        optimizer=cfg.nn.model.optimizer,
+        resnet_depth=cfg.nn.model.resnet_depth,
+        # conv_init_method=cfg.nn.model.conv_init_method,
+        # batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+        lin_init_method=cfg.nn.model.lin_init_method,
+        # conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+        # batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+        lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+        dropout_probability=cfg.nn.model.dropout_probability,
+        # dropout2d_probability=cfg.nn.model.dropout2d_probability,
+        transfer_learning=cfg.nn.model.transfer_learning,
+        _recursive_=False,
+    )
+
+    print(model)
+
+
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
     """Debug main to quickly develop the Lightning Module.
@@ -217,7 +290,7 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    _debug_BasicResNetLighningModule(cfg=cfg)
+    _debug_AdvancedResNetLighningModule(cfg=cfg)
     
 
 

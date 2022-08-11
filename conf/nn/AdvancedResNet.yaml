@@ -1,0 +1,42 @@
+module:
+  _target_: biscuits.pl_modules.pl_module.AdvancedResNetLightningModule
+
+model:
+  _target_: biscuits.modules.Advanced_ResNet
+
+  resnet_depth: 18
+
+  # conv_init_method: "he_kaiming_normal"
+
+  # batchnorm_init_methods:
+  #   parameters:
+  #     method: "uniform"
+  #     range: [0, 1]
+  #   bias: "0"
+
+  lin_init_method: "he_kaiming_normal"
+
+  # conv_freeze_parameters: False
+
+  # batchnorm_freeze_parameters: False
+
+  lin_freeze_parameters: False
+
+  dropout_probability: 0.0
+  # dropout2d_probability: 0.2
+
+  transfer_learning: True
+
+  optimizer: 
+    _target_: torch.optim.SGD
+    lr: 0.1
+    momentum: 0.9
+    weight_decay: 1e-4
+
+  # lr_scheduler:
+  #   _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+  #   T_0: 10
+  #   T_mult: 2
+  #   eta_min: 0 # min value for the lr
+  #   last_epoch: -1
+  #   verbose: False
