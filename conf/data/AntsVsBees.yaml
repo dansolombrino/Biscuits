@@ -28,5 +28,9 @@ batch_size:
   val: 128
   test: 128
 
-# how much percentage of train split to reserve for validation
-validation_percentage_split: 0.2
+# how much percentage of test split to reserve for validation.
+# 
+# note that we split test set ("val" folder of ants_vs_bees dataset) in order to 
+# keep the 60/20/20 train/validation/test split
+# splitting the train portion would reduce the trianing part too much!
+validation_percentage_split: 0.5
