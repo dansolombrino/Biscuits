@@ -1,4 +1,5 @@
 import logging
+from pickletools import optimize
 from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import hydra
@@ -41,15 +42,24 @@ class BasicResNetLightningModule(pl.LightningModule):
         self.val_accuracy = metric.clone()
         self.test_accuracy = metric.clone()
 
-        self.resnet_depth = self.hparams["resnet_depth"]
-        self.conv_init_method = self.hparams["conv_init_method"]
-        self.batchnorm_init_methods = self.hparams["batchnorm_init_methods"]
-        self.lin_init_method = self.hparams["lin_init_method"]
-        self.conv_freeze_parameters = self.hparams["conv_freeze_parameters"]
-        self.batchnorm_freeze_parameters = self.hparams["batchnorm_freeze_parameters"]
-        self.lin_freeze_parameters = self.hparams["lin_freeze_parameters"]
-        self.dropout_probability = self.hparams["dropout_probability"]
-        self.dropout2d_probability = self.hparams["dropout2d_probability"]
+        self.resnet_depth = kwargs["resnet_depth"]
+
+        self.conv_init_method = kwargs["conv_init_method"]
+        self.batchnorm_init_methods = kwargs["batchnorm_init_methods"]
+        self.lin_init_method = kwargs["lin_init_method"]
+
+        self.conv_freeze_parameters = kwargs["conv_freeze_parameters"]
+        self.batchnorm_freeze_parameters = kwargs["batchnorm_freeze_parameters"]
+        self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
+
+        self.dropout_probability = kwargs["dropout_probability"]
+        self.dropout2d_probability = kwargs["dropout2d_probability"]
+
+        self.optimizer = kwargs["optimizer"]
+        try:
+            self.lr_scheduler = kwargs["lr_scheduler"]
+        except KeyError:
+            self.lr_scheduler = None
 
 
         self.model = Basic_ResNet.ResNetFactory(
@@ -167,17 +177,38 @@ class BasicResNetLightningModule(pl.LightningModule):
             - None - Fit will run without any optimizer.
         """
         opt = hydra.utils.instantiate(
-            self.hparams.optimizer,
+            self.optimizer,
             params=self.parameters(),
             _convert_="partial",
         )
-        if "lr_scheduler" not in self.hparams:
+        # if "lr_scheduler" not in kwargs:
+        if self.lr_scheduler is None:
             return [opt]
+
         scheduler = hydra.utils.instantiate(
-            self.hparams.lr_scheduler, optimizer=opt
+            self.lr_scheduler, optimizer=opt
         )
         return [opt], [scheduler]
 
+
+def _debug_BasicResNetLighningModule(cfg: omegaconf.DictConfig):
+
+    model: pl.LightningModule = hydra.utils.instantiate(
+        config=cfg.nn.module,
+        optimizer=cfg.nn.model.optimizer,
+        resnet_depth=cfg.nn.model.resnet_depth,
+        conv_init_method=cfg.nn.model.conv_init_method,
+        batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+        lin_init_method=cfg.nn.model.lin_init_method,
+        conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+        batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+        lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+        dropout_probability=cfg.nn.model.dropout_probability,
+        dropout2d_probability=cfg.nn.model.dropout2d_probability,
+        _recursive_=False,
+    )
+
+    print(model)
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
@@ -186,19 +217,8 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    model: pl.LightningModule = hydra.utils.instantiate(
-        cfg.nn.module,
-        optim=cfg.nn.module.optimizer,
-        _recursive_=False,
-        resnet_depth=cfg.module.model.basic_resnet.resnet_depth,
-        conv_init_method=cfg.nn.module.model.basic_resnet.conv_init_method,
-        batchnorm_init_methods=cfg.nn.module.model.basic_resnet.batchnorm_init_methods,
-        lin_init_method=cfg.nn.module.model.basic_resnet.lin_init_method,
-        conv_freeze_parameters=cfg.nn.module.model.basic_resnet.conv_freeze_parameters,
-        batchnorm_freeze_parameters=cfg.nn.module.model.basic_resnet.batchnorm_freeze_parameters,
-        lin_freeze_parameters=cfg.nn.module.model.basic_resnet.lin_freeze_parameters,
-        dropout_probability=cfg.nn.module.model.basic_resnet.dropout_probability
-    )
+    _debug_BasicResNetLighningModule(cfg=cfg)
+    
 
 
 if __name__ == "__main__":
