@@ -6,8 +6,12 @@ import omegaconf
 from torch.utils.data import Dataset
 from torchvision.datasets import CIFAR10, ImageNet
 from tqdm import tqdm
+import torch
 from torchvision import transforms
 from torchvision.utils import save_image
+from torchvision import datasets
+
+import os
 
 
 from nn_core.common import PROJECT_ROOT
@@ -54,6 +58,7 @@ class CIFAR10Dataset(Dataset):
     def __repr__(self) -> str:
         return f"CIFAR10Dataset(n_instances={len(self)})"
 
+
 def _debug_CIFAR10Dataset(): 
 
     transform = transforms.Compose(
@@ -89,6 +94,57 @@ def _debug_CIFAR10Dataset():
 
     print(type(dataset[0][1]))
 
+
+class AntsVsBeesDataset(Dataset):
+    def __init__(self, train: bool, path: str, transform):
+        self.train = train
+        self.path = path
+        self.transform = transform
+
+        self.image_datasets = datasets.ImageFolder(
+            self.path, self.transform
+        )
+        
+        self.dataloaders = torch.utils.data.DataLoader(
+            self.image_datasets, batch_size=4, shuffle=True, num_workers=4
+        )
+        
+        self.class_names = self.image_datasets.classes
+
+    def __len__(self):
+        return len(self.image_datasets)
+
+
+def _debug_AntsVsBeesDataset():
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    test_transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    is_training = False
+
+    ants_vs_bees_dataset = AntsVsBeesDataset(
+        train=is_training, 
+        path=
+            "/home/dansolombrino/GitHub/biscuits/data/ants_vs_bees/" + 
+            ("train" if is_training else "val"),
+        transform=train_transform if is_training else test_transform
+    )
+
+    print(ants_vs_bees_dataset.__len__())
+    print(ants_vs_bees_dataset.class_names)
+
+
+
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
     """Debug main to quickly develop the Dataset.
@@ -99,4 +155,4 @@ def main(cfg: omegaconf.DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()    
