@@ -3,17 +3,17 @@ _target_: biscuits.data.datamodule.CIFAR10DataModule
 datasets:
   train_set:
     _target_: biscuits.data.dataset.CIFAR10Dataset
-    path: ${oc.env:TRAIN_DATASET_PATH}
+    path: ${oc.env:CIFAR10_TRAIN_DATASET_PATH}
     train: True
 
   val_set:
     - _target_: biscuits.data.dataset.CIFAR10Dataset
-      path: ${oc.env:VAL_DATASET_PATH}
+      path: ${oc.env:CIFAR10_VAL_DATASET_PATH}
       train: False
 
   test_set:
     - _target_: biscuits.data.dataset.CIFAR10Dataset
-      path: ${oc.env:TEST_DATASET_PATH}
+      path: ${oc.env:CIFAR10_TEST_DATASET_PATH}
       train: False
 
 gpus: ${train.trainer.gpus}
@@ -24,7 +24,7 @@ num_workers:
   test: 8
 
 batch_size:
-  train: 128
+  train: 512
   val: 128
   test: 128
 
