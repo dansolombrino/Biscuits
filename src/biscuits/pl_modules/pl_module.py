@@ -14,10 +14,12 @@ from nn_core.common import PROJECT_ROOT
 from nn_core.model_logging import NNLogger
 
 from biscuits.data.datamodule import MetaData
-from biscuits.modules import Basic_ResNet, Advanced_ResNet
+from biscuits.modules import Advanced_ResNet, Basic_ResNet
+from biscuits.modules.Advanced_ResNet import (
+    Advanced_ResNet,
+    compute_num_summary,
+)
 from biscuits.modules.module import CNN
-
-from biscuits.modules.Advanced_ResNet import Advanced_ResNet, compute_num_summary
 
 pylogger = logging.getLogger(__name__)
 
@@ -63,7 +65,6 @@ class BasicResNetLightningModule(pl.LightningModule):
         except KeyError:
             self.lr_scheduler = None
 
-
         self.model = Basic_ResNet.ResNetFactory(
             self.resnet_depth,
             self.conv_init_method,
@@ -73,7 +74,7 @@ class BasicResNetLightningModule(pl.LightningModule):
             self.batchnorm_freeze_parameters,
             self.lin_freeze_parameters,
             self.dropout_probability,
-            self.dropout2d_probability
+            self.dropout2d_probability,
         )
 
         pylogger.info("Instantiated model: ")
@@ -187,9 +188,7 @@ class BasicResNetLightningModule(pl.LightningModule):
         if self.lr_scheduler is None:
             return [opt]
 
-        scheduler = hydra.utils.instantiate(
-            self.lr_scheduler, optimizer=opt
-        )
+        scheduler = hydra.utils.instantiate(self.lr_scheduler, optimizer=opt)
         return [opt], [scheduler]
 
 
@@ -236,10 +235,10 @@ class AdvancedResNetLightningModule(pl.LightningModule):
         self.test_accuracy = metric.clone()
 
         self.resnet_depth = kwargs["resnet_depth"]
-        
+
         self.lin_init_method = kwargs["lin_init_method"]
         self.lin_freeze_parameters = kwargs["lin_freeze_parameters"]
-        
+
         self.dropout_probability = kwargs["dropout_probability"]
 
         self.transfer_learning = kwargs["transfer_learning"]
@@ -251,11 +250,11 @@ class AdvancedResNetLightningModule(pl.LightningModule):
             self.lr_scheduler = None
 
         self.model = Advanced_ResNet.from_pretrained(
-            model_name="resnet" + str(self.resnet_depth), 
-            num_classes=2, 
+            model_name="resnet" + str(self.resnet_depth),
+            num_classes=2,
             lin_init_method=self.lin_init_method,
             lin_freeze_parameters=self.lin_freeze_parameters,
-            transfer_learning=self.transfer_learning
+            transfer_learning=self.transfer_learning,
         )
 
         pylogger.info("Instantiated model: ")
@@ -263,7 +262,7 @@ class AdvancedResNetLightningModule(pl.LightningModule):
 
 
 def _debug_AdvancedResNetLighningModule(cfg: omegaconf.DictConfig):
-    
+
     model: pl.LightningModule = hydra.utils.instantiate(
         config=cfg.nn.module,
         optimizer=cfg.nn.model.optimizer,
@@ -291,7 +290,6 @@ def main(cfg: omegaconf.DictConfig) -> None:
         cfg: the hydra configuration
     """
     _debug_AdvancedResNetLighningModule(cfg=cfg)
-    
 
 
 if __name__ == "__main__":

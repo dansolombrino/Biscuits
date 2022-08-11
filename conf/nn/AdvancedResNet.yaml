@@ -27,7 +27,7 @@ model:
 
   transfer_learning: True
 
-  optimizer: 
+  optimizer:
     _target_: torch.optim.SGD
     lr: 0.1
     momentum: 0.9
