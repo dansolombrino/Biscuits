@@ -1,3 +1,4 @@
+from imghdr import tests
 import logging
 from functools import cached_property, partial
 from pathlib import Path
@@ -269,6 +270,59 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
 
         self.validation_percentage_split: float = validation_percentage_split
 
+        # ------ #
+
+        train_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+
+        test_transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])        
+
+        stage = None
+
+        # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
+        if (stage is None or stage == "fit") and (
+            self.train_dataset is None and self.validation_datasets is None
+        ):
+
+            train_set = hydra.utils.instantiate(
+                config=self.datasets.train_set,
+                train=True,
+                path=self.datasets.train_set.path,
+                transform=train_transform, # TODO pass it via hydra
+            )
+            
+            train_set_length = int(
+                len(train_set) * (1 - self.validation_percentage_split)
+            )
+
+            validation_set_length = len(train_set) - train_set_length
+
+            self.train_dataset, validation_dataset = random_split(
+                train_set, [train_set_length, validation_set_length]
+            )
+
+            self.validation_datasets = validation_dataset
+
+        if stage is None or stage == "test":
+            self.test_datasets = [
+                hydra.utils.instantiate(
+                    config=test_set_cfg,
+                    train=False,
+                    # path=self.datasets.test_set.path,
+                    path=test_set_cfg.path,
+                    transform=test_transform,
+                ) for test_set_cfg in self.datasets.test_set
+            ]
+
     @cached_property
     def metadata(self) -> MetaData:
         """Data information to be fed to the Lightning Module as parameter.
@@ -290,6 +344,9 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
+        pass
+
+    def _setup_old_method_bla_bla(self, stage: Optional[str] = None):
         
         train_transform = transforms.Compose([
             transforms.RandomResizedCrop(224),
@@ -318,8 +375,10 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
             )
 
         if stage is None or stage == "test":
-            # see CIFAR10 for support of union of multiple dataset!
-
+            # see CIFAR10 to support of union of multiple dataset!
+            print("\n\n\n")
+            print(self.datasets.test_set.path)
+            print("\n\n\n")
             test_set = hydra.utils.instantiate(
                 config=self.datasets.test_set,
                 train=False,
@@ -348,19 +407,20 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         )
     
     def val_dataloader(self) -> Sequence[DataLoader]:
-        return [
-            DataLoader(
-                dataset,
-                shuffle=False,
-                batch_size=self.batch_size.val,
-                num_workers=self.num_workers.val,
-                pin_memory=self.pin_memory,
-                collate_fn=partial(
-                    collate_fn, split="val", metadata=self.metadata
-                ),
-            )
-            for dataset in self.validation_datasets
-        ]
+        # see CIFAR10 for support of union of multiple dataset!
+        print("\n\n\n")
+        print(self.validation_datasets)
+        print("\n\n\n")
+        return DataLoader(
+            self.validation_datasets,
+            shuffle=False,
+            batch_size=self.batch_size.val,
+            num_workers=self.num_workers.val,
+            pin_memory=self.pin_memory,
+            collate_fn=partial(
+                collate_fn, split="val", metadata=self.metadata
+            ),
+        )
 
     def test_dataloader(self) -> Sequence[DataLoader]:
         return [

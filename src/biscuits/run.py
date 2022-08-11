@@ -67,20 +67,35 @@ def run(cfg: DictConfig) -> str:
 
     # Instantiate datamodule
     pylogger.info(f"Instantiating <{cfg.data['_target_']}>")
-    datamodule: pl.LightningDataModule = hydra.utils.instantiate(
-        # config=cfg.nn.data,
-        # datasets=cfg.nn.data.datasets, 
-        # num_workers=cfg.nn.data.num_workers,
-        # batch_size=cfg.nn.data.batch_size,
-        # validation_percentage_split=cfg.nn.data.validation_percentage_split,
-        # _recursive_=False,
-        config=cfg.data,
-        datasets=cfg.data.datasets, 
-        num_workers=cfg.data.num_workers,
-        batch_size=cfg.data.batch_size,
-        validation_percentage_split=cfg.data.validation_percentage_split,
-        _recursive_=False,
-    )
+
+    if "CIFAR10" in cfg.data['_target_']:
+        datamodule: pl.LightningDataModule = hydra.utils.instantiate(
+            # config=cfg.nn.data,
+            # datasets=cfg.nn.data.datasets, 
+            # num_workers=cfg.nn.data.num_workers,
+            # batch_size=cfg.nn.data.batch_size,
+            # validation_percentage_split=cfg.nn.data.validation_percentage_split,
+            # _recursive_=False,
+            config=cfg.data,
+            datasets=cfg.data.datasets, 
+            num_workers=cfg.data.num_workers,
+            batch_size=cfg.data.batch_size,
+            validation_percentage_split=cfg.data.validation_percentage_split,
+            _recursive_=False,
+        )
+    elif "AntsVsBees" in cfg.data["_target_"]:
+        datamodule: pl.LightningDataModule = hydra.utils.instantiate(
+            config=cfg.data,
+            datasets=cfg.data.datasets, 
+            num_workers=cfg.data.num_workers,
+            batch_size=cfg.data.batch_size,
+            validation_percentage_split=cfg.data.validation_percentage_split,
+            _recursive_=False,
+        )
+    else:
+        raise KeyError(
+            f"{cfg.data['_target_']} DataModule does NOT exist"
+        )
 
     metadata: Optional[MetaData] = getattr(datamodule, "metadata", None)
     if metadata is None:
@@ -115,13 +130,28 @@ def run(cfg: DictConfig) -> str:
             optimizer=cfg.nn.model.optimizer
         )
     
+    elif "AdvancedResNetLightningModule" in cfg.nn.module['_target_']:
+        model: pl.LightningModule = hydra.utils.instantiate(
+        config=cfg.nn.module,
+        optimizer=cfg.nn.model.optimizer,
+        resnet_depth=cfg.nn.model.resnet_depth,
+        # conv_init_method=cfg.nn.model.conv_init_method,
+        # batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+        lin_init_method=cfg.nn.model.lin_init_method,
+        # conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+        # batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+        lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+        dropout_probability=cfg.nn.model.dropout_probability,
+        # dropout2d_probability=cfg.nn.model.dropout2d_probability,
+        transfer_learning=cfg.nn.model.transfer_learning,
+        _recursive_=False,
+    )
+    
     # default case
     else: 
-        pylogger.error(f"No LighningModule named {cfg.nn.module['_target_']}")
-        pylogger.error(
-            "Please check your Hydra configuration and restart the run"
+        raise KeyError(
+            f"No LighningModule named {cfg.nn.module['_target_']}"
         )
-        pylogger.error("An error may occur down the line...")
         
 
 
