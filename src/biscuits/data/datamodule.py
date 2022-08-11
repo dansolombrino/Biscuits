@@ -286,42 +286,35 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])        
 
-        stage = None
+        train_set = hydra.utils.instantiate(
+            config=self.datasets.train_set,
+            train=True,
+            path=self.datasets.train_set.path,
+            transform=train_transform, # TODO pass it via hydra
+        )
+        
+        # TODO RESUME FROM HERE, get validation split from self.test_datasets.
+        self.test_datasets = hydra.utils.instantiate(
+                config=self.datasets.test_set,
+                train=False,
+                # path=self.datasets.test_set.path,
+                path=self.datasets.test_set.path,
+                transform=test_transform,
+            ) 
+        
+        train_set_length = int(
+            len(train_set) * (1 - self.validation_percentage_split)
+        )
 
-        # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
-        if (stage is None or stage == "fit") and (
-            self.train_dataset is None and self.validation_datasets is None
-        ):
+        validation_set_length = len(train_set) - train_set_length
 
-            train_set = hydra.utils.instantiate(
-                config=self.datasets.train_set,
-                train=True,
-                path=self.datasets.train_set.path,
-                transform=train_transform, # TODO pass it via hydra
-            )
-            
-            train_set_length = int(
-                len(train_set) * (1 - self.validation_percentage_split)
-            )
+        self.train_dataset, validation_dataset = random_split(
+            train_set, [train_set_length, validation_set_length]
+        )
 
-            validation_set_length = len(train_set) - train_set_length
+        self.validation_datasets = validation_dataset
 
-            self.train_dataset, validation_dataset = random_split(
-                train_set, [train_set_length, validation_set_length]
-            )
-
-            self.validation_datasets = validation_dataset
-
-        if stage is None or stage == "test":
-            self.test_datasets = [
-                hydra.utils.instantiate(
-                    config=test_set_cfg,
-                    train=False,
-                    # path=self.datasets.test_set.path,
-                    path=test_set_cfg.path,
-                    transform=test_transform,
-                ) for test_set_cfg in self.datasets.test_set
-            ]
+        
 
     @cached_property
     def metadata(self) -> MetaData:
@@ -423,9 +416,8 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         )
 
     def test_dataloader(self) -> Sequence[DataLoader]:
-        return [
-            DataLoader(
-                dataset,
+        return DataLoader(
+                dataset=self.test_datasets,
                 shuffle=False,
                 batch_size=self.batch_size.test,
                 num_workers=self.num_workers.test,
@@ -434,8 +426,6 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
                     collate_fn, split="test", metadata=self.metadata
                 ),
             )
-            for dataset in self.test_datasets
-        ]
 
     def __repr__(self) -> str:
         return (

@@ -12,9 +12,9 @@ datasets:
       train: False
 
   test_set:
-    - _target_: biscuits.data.dataset.AntsVsBeesDataset
-      path: ${oc.env:ANTSVSBEES_TEST_DATASET_PATH}
-      train: False
+    _target_: biscuits.data.dataset.AntsVsBeesDataset
+    path: ${oc.env:ANTSVSBEES_TEST_DATASET_PATH}
+    train: False
 
 gpus: ${train.trainer.gpus}
 
