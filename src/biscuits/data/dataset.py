@@ -115,6 +115,18 @@ class AntsVsBeesDataset(Dataset):
     def __len__(self):
         return len(self.image_datasets)
 
+    def __getitem__(self, index):
+        return self.image_datasets[index]
+
+    def __repr__(self) -> str:
+        return f"--- AntsVsBeesDataset ---\n\n" + \
+            f"len: {self.__len__()}\n" + \
+            f"classes: {self.class_names}\n" + \
+            f"train: {self.train}\n" + \
+            f"path : {self.path}\n" + \
+            f"transform: {self.transform}" + \
+            "\n\n---------------------------"
+
 
 def _debug_AntsVsBeesDataset(is_training, path):
     train_transform = transforms.Compose([
@@ -137,8 +149,7 @@ def _debug_AntsVsBeesDataset(is_training, path):
         transform=train_transform if is_training else test_transform
     )
 
-    print(ants_vs_bees_dataset.__len__())
-    print(ants_vs_bees_dataset.class_names)
+    print(ants_vs_bees_dataset)
 
 
 
@@ -149,9 +160,9 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    # _debug_AntsVsBeesDataset(
-    #     cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
-    # )
+    _debug_AntsVsBeesDataset(
+        cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
+    )
 
 
 if __name__ == "__main__":
