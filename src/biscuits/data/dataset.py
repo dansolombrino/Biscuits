@@ -12,6 +12,7 @@ from torchvision.utils import save_image
 from torchvision import datasets
 
 import os
+from pprint import pprint
 
 
 from nn_core.common import PROJECT_ROOT
@@ -115,7 +116,7 @@ class AntsVsBeesDataset(Dataset):
         return len(self.image_datasets)
 
 
-def _debug_AntsVsBeesDataset():
+def _debug_AntsVsBeesDataset(is_training, path):
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
@@ -130,13 +131,9 @@ def _debug_AntsVsBeesDataset():
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    is_training = False
-
     ants_vs_bees_dataset = AntsVsBeesDataset(
         train=is_training, 
-        path=
-            "/home/dansolombrino/GitHub/biscuits/data/ants_vs_bees/" + 
-            ("train" if is_training else "val"),
+        path=path,
         transform=train_transform if is_training else test_transform
     )
 
@@ -152,6 +149,9 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
+    # _debug_AntsVsBeesDataset(
+    #     cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
+    # )
 
 
 if __name__ == "__main__":
