@@ -248,6 +248,18 @@ class CIFAR10DataModule(pl.LightningDataModule):
             f"{self.batch_size=})"
         )
 
+# self.train_transform = transforms.Compose([
+#     transforms.RandomResizedCrop(224),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.ToTensor(),
+#     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# ])
+# self.test_transforms = transforms.Compose([
+#     transforms.Resize(256),
+#     transforms.CenterCrop(224),
+#     transforms.ToTensor(),
+#     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# ])
 
 class AntsVsBeesDataModule(pl.LightningDataModule):
     def __init__(
@@ -276,7 +288,7 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        self.test_transforms = transforms.Compose([
+        self.test_transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -308,7 +320,8 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
-         # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
+        
+        # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
         if (stage is None or stage == "fit") and (
             self.train_dataset is None and self.validation_datasets is None
         ):
@@ -317,31 +330,36 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
                 config=self.datasets.train_set,
                 train=True,
                 path=self.datasets.train_set.path,
-                transform=self.train_transform, # TODO pass it via hydra
-            )
-            
-            train_set_length = int(
-                len(train_set) * (1 - self.validation_percentage_split)
+                transform=self.train_transform,
             )
 
-            validation_set_length = len(train_set) - train_set_length
-
-            self.train_dataset, validation_dataset = random_split(
-                train_set, [train_set_length, validation_set_length]
+            validation_set = hydra.utils.instantiate(
+                config=self.datasets.val_set,
+                train=False,
+                path=self.datasets.val_set.path,
+                transform=self.train_transform, 
             )
 
-            self.validation_datasets = [validation_dataset]
+            # validation_set_length = len(train_set) - train_set_length
+
+            # self.train_dataset, validation_dataset = random_split(
+            #     train_set, [train_set_length, validation_set_length]
+            # ) 
+
+            self.train_dataset = train_set
+            self.validation_datasets = [validation_set]
+            # self.validation_datasets = [validation_dataset]
 
         if stage is None or stage == "test":
             self.test_datasets = [
                 hydra.utils.instantiate(
                     config=test_set_cfg,
                     train=False,
-                    # path=self.datasets.test_set.path,
                     path=test_set_cfg.path,
-                    transform=self.test_transforms,
+                    transform=self.test_transform,
                 ) for test_set_cfg in self.datasets.test_set
             ]
+        
 
     def _setup_old_method_bla_bla(self, stage: Optional[str] = None):
         
