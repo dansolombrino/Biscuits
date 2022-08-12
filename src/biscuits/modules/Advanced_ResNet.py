@@ -349,7 +349,8 @@ def resnet_params(model_name):
         # Coefficients:   block, res
         "resnet18": (BasicBlock, 224),
         "resnet34": (BasicBlock, 224),
-        "resnet54": (Bottleneck, 224),
+        # "resnet54": (Bottleneck, 224),
+        "resnet50": (Bottleneck, 224),
         "resnet101": (Bottleneck, 224),
         "resnet152": (Bottleneck, 224),
     }
@@ -383,7 +384,8 @@ def resnet(
     layers_dict = {
         "resnet18": (2, 2, 2, 2),
         "resnet34": (3, 4, 6, 3),
-        "resnet54": (3, 4, 6, 3),
+        # "resnet54": (3, 4, 6, 3),
+        "resnet50": (3, 4, 6, 3),
         "resnet101": (3, 4, 23, 3),
         "resnet152": (3, 8, 36, 3),
     }
@@ -470,6 +472,7 @@ class Advanced_ResNet(nn.Module):
         lin_init_method: bool,
         lin_freeze_parameters: bool,
         transfer_learning: bool,
+        dropout_probability: float
     ):
         super(Advanced_ResNet, self).__init__()
         assert isinstance(layers, tuple), "blocks_args should be a tuple"
@@ -500,6 +503,8 @@ class Advanced_ResNet(nn.Module):
         self.groups = global_params.groups
 
         self.base_width = global_params.width_per_group
+
+        self.dropout_probability = dropout_probability
 
         # --- Begin 1st convolutional layer of Advanced ResNet --- #
         self.conv1 = nn.Conv2d(
@@ -563,8 +568,11 @@ class Advanced_ResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.batch_norm_fully_connected = nn.BatchNorm1d(
-            512
+            512 * global_params.block.expansion
         )
+        
+        self.dropout = nn.Dropout1d(p=self.dropout_probability)
+
         # Initializing the Transfer Learning layer directly in the constructor
         # This is safe to do, since the logic to get the NN to perform Transfer
         # Learning works as follows:
@@ -707,6 +715,7 @@ class Advanced_ResNet(nn.Module):
         x = torch.flatten(x, 1)
 
         x = self.batch_norm_fully_connected(x)
+        x = self.dropout(x)
         x = self.fc(x)
 
         return x
@@ -725,6 +734,7 @@ class Advanced_ResNet(nn.Module):
         lin_init_method,
         lin_freeze_parameters,
         transfer_learning,
+        dropout_probability
     ):
         cls._check_model_name_is_valid(model_name)
 
@@ -736,6 +746,7 @@ class Advanced_ResNet(nn.Module):
             lin_init_method,
             lin_freeze_parameters,
             transfer_learning,
+            dropout_probability
         )
 
     @classmethod
@@ -746,6 +757,7 @@ class Advanced_ResNet(nn.Module):
         lin_init_method: str,
         lin_freeze_parameters: bool,
         transfer_learning: bool,
+        dropout_probability: float
     ):
         model = cls.from_name(
             model_name,
@@ -753,6 +765,7 @@ class Advanced_ResNet(nn.Module):
             lin_init_method=lin_init_method,
             lin_freeze_parameters=lin_freeze_parameters,
             transfer_learning=transfer_learning,
+            dropout_probability=dropout_probability
         )
 
         # Whether to load the weights for the fully connected layer depends on
@@ -793,6 +806,7 @@ if __name__ == "__main__":
         lin_init_method="he_kaiming_uniform",
         lin_freeze_parameters=True,
         transfer_learning=True,
+        dropout_probability=0.5
     )
 
     net(torch.rand((2, 3, 256, 256)))

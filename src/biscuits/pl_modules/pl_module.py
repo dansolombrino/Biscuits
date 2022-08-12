@@ -253,6 +253,7 @@ class AdvancedResNetLightningModule(pl.LightningModule):
             lin_init_method=self.lin_init_method,
             lin_freeze_parameters=self.lin_freeze_parameters,
             transfer_learning=self.transfer_learning,
+            dropout_probability=self.dropout_probability
         )
 
         pylogger.info("Instantiated model: ")
