@@ -12,9 +12,9 @@ datasets:
       train: False
 
   test_set:
-    _target_: biscuits.data.dataset.AntsVsBeesDataset
-    path: ${oc.env:ANTSVSBEES_TEST_DATASET_PATH}
-    train: False
+    - _target_: biscuits.data.dataset.AntsVsBeesDataset
+      path: ${oc.env:ANTSVSBEES_TEST_DATASET_PATH}
+      train: False
 
 gpus: ${train.trainer.gpus}
 
@@ -24,13 +24,15 @@ num_workers:
   test: 8
 
 batch_size:
-  train: 4
-  val: 4
-  test: 4
+  train: 16
+  val: 32
+  test: 32
 
 # how much percentage of test split to reserve for validation.
 # 
 # note that we split test set ("val" folder of ants_vs_bees dataset) in order to 
 # keep the 60/20/20 train/validation/test split
 # splitting the train portion would reduce the trianing part too much!
-validation_percentage_split: 0.5
+#
+# DEPRECATED --> performed physical split of data!
+#validation_percentage_split: 0.5

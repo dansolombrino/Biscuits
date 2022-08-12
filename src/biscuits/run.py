@@ -89,7 +89,6 @@ def run(cfg: DictConfig) -> str:
             datasets=cfg.data.datasets, 
             num_workers=cfg.data.num_workers,
             batch_size=cfg.data.batch_size,
-            validation_percentage_split=cfg.data.validation_percentage_split,
             _recursive_=False,
         )
     else:
