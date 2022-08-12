@@ -102,7 +102,7 @@ def get_num_layers(net):
         list(
             filter(
                 # lambda p: p.requires_grad and len(p.data.size()) > 1,
-                lambda p: p.requires_grad and len(p.data.size()) > 1,
+                lambda p: len(p.data.size()) > 1,
                 net.parameters(),
             )
         )
@@ -213,11 +213,23 @@ class BasicBlock(nn.Module):
         # Both self.conv1 and self.downsample layers downsample the input when
         # stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
+        _freeze_layer_params(
+            layer=self.conv1, should_freeze_parameters=conv_freeze_parameters
+        )
         self.bn1 = norm_layer(planes)
+        _freeze_layer_params(
+            layer=self.bn1, should_freeze_parameters=conv_freeze_parameters
+        )
         self.relu = nn.ReLU(inplace=True)
 
         self.conv2 = conv3x3(planes, planes)
+        _freeze_layer_params(
+            layer=self.conv2, should_freeze_parameters=conv_freeze_parameters
+        )
         self.bn2 = norm_layer(planes)
+        _freeze_layer_params(
+            layer=self.bn2, should_freeze_parameters=conv_freeze_parameters
+        )
         self.downsample = downsample
 
         self.stride = stride
@@ -270,13 +282,31 @@ class Bottleneck(nn.Module):
         # stride != 1
 
         self.conv1 = conv1x1(inplanes, width)
+        _freeze_layer_params(
+            layer=self.conv1, should_freeze_parameters=conv_freeze_parameters
+        )
         self.bn1 = norm_layer(width)
+        _freeze_layer_params(
+            layer=self.bn1, should_freeze_parameters=conv_freeze_parameters
+        )
 
         self.conv2 = conv3x3(width, width, stride, groups, dilation)
+        _freeze_layer_params(
+            layer=self.conv2, should_freeze_parameters=conv_freeze_parameters
+        )
         self.bn2 = norm_layer(width)
+        _freeze_layer_params(
+            layer=self.bn2, should_freeze_parameters=conv_freeze_parameters
+        )
 
         self.conv3 = conv1x1(width, planes * self.expansion)
+        _freeze_layer_params(
+            layer=self.conv3, should_freeze_parameters=conv_freeze_parameters
+        )
         self.bn3 = norm_layer(planes * self.expansion)
+        _freeze_layer_params(
+            layer=self.bn3, should_freeze_parameters=conv_freeze_parameters
+        )
 
         self.relu = nn.ReLU(inplace=True)
 
@@ -600,10 +630,15 @@ class Advanced_ResNet(nn.Module):
             stride = 1
 
         if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+            conv = conv1x1(self.inplanes, planes * block.expansion, stride)
+            _freeze_layer_params(
+                layer=conv, should_freeze_parameters=conv_freeze_parameters
             )
+            bn = norm_layer(planes * block.expansion)
+            _freeze_layer_params(
+                layer=bn, should_freeze_parameters=conv_freeze_parameters
+            )
+            downsample = nn.Sequential(conv, bn)
 
         layers = [
             block(
@@ -750,5 +785,8 @@ if __name__ == "__main__":
         model_name="resnet18",
         num_classes=2,
         lin_init_method="he_kaiming_uniform",
+        lin_freeze_parameters=False,
         transfer_learning=True,
     )
+
+    print(compute_num_summary(net))
