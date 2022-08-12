@@ -24,9 +24,9 @@ num_workers:
   test: 8
 
 batch_size:
-  train: 16
-  val: 32
-  test: 32
+  train: 32
+  val: 128
+  test: 128
 
 # how much percentage of test split to reserve for validation.
 # 
