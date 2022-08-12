@@ -429,10 +429,11 @@ def load_pretrained_weights(model, model_name, load_fc):
         state_dict.pop("fc.weight")
         state_dict.pop("fc.bias")
         res = model.load_state_dict(state_dict, strict=False)
-        assert set(res.missing_keys) == {
-            "fc.weight",
-            "fc.bias",
-        }, "issue loading pretrained weights"
+
+        # assert set(res.missing_keys) == {
+        #     "fc.weight",
+        #     "fc.bias",
+        # }, "issue loading pretrained weights"
 
     pylogger.info(f"Loaded pretrained weights for {model_name}.")
 
@@ -561,6 +562,9 @@ class Advanced_ResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
+        self.batch_norm_fully_connected = nn.BatchNorm1d(
+            512
+        )
         # Initializing the Transfer Learning layer directly in the constructor
         # This is safe to do, since the logic to get the NN to perform Transfer
         # Learning works as follows:
@@ -701,6 +705,8 @@ class Advanced_ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+
+        x = self.batch_norm_fully_connected(x)
         x = self.fc(x)
 
         return x
@@ -785,8 +791,10 @@ if __name__ == "__main__":
         model_name="resnet18",
         num_classes=2,
         lin_init_method="he_kaiming_uniform",
-        lin_freeze_parameters=False,
+        lin_freeze_parameters=True,
         transfer_learning=True,
     )
+
+    net(torch.rand((2, 3, 256, 256)))
 
     print(compute_num_summary(net))
