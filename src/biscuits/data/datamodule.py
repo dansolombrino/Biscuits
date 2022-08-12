@@ -270,49 +270,20 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
 
         self.validation_percentage_split: float = validation_percentage_split
 
-        # ------ #
-
-        train_transform = transforms.Compose([
+        self.train_transform = transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-
-        test_transform = transforms.Compose([
+        self.test_transforms = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])        
+        ])
 
-        train_set = hydra.utils.instantiate(
-            config=self.datasets.train_set,
-            train=True,
-            path=self.datasets.train_set.path,
-            transform=train_transform, # TODO pass it via hydra
-        )
-        
-        # TODO RESUME FROM HERE, get validation split from self.test_datasets.
-        self.test_datasets = hydra.utils.instantiate(
-                config=self.datasets.test_set,
-                train=False,
-                # path=self.datasets.test_set.path,
-                path=self.datasets.test_set.path,
-                transform=test_transform,
-            ) 
-        
-        train_set_length = int(
-            len(train_set) * (1 - self.validation_percentage_split)
-        )
-
-        validation_set_length = len(train_set) - train_set_length
-
-        self.train_dataset, validation_dataset = random_split(
-            train_set, [train_set_length, validation_set_length]
-        )
-
-        self.validation_datasets = validation_dataset
+        self.setup(stage=None)
 
         
 
@@ -337,7 +308,40 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
-        pass
+         # Here you should instantiate your datasets, you may also split the train into train and validation if needed.
+        if (stage is None or stage == "fit") and (
+            self.train_dataset is None and self.validation_datasets is None
+        ):
+
+            train_set = hydra.utils.instantiate(
+                config=self.datasets.train_set,
+                train=True,
+                path=self.datasets.train_set.path,
+                transform=self.train_transform, # TODO pass it via hydra
+            )
+            
+            train_set_length = int(
+                len(train_set) * (1 - self.validation_percentage_split)
+            )
+
+            validation_set_length = len(train_set) - train_set_length
+
+            self.train_dataset, validation_dataset = random_split(
+                train_set, [train_set_length, validation_set_length]
+            )
+
+            self.validation_datasets = [validation_dataset]
+
+        if stage is None or stage == "test":
+            self.test_datasets = [
+                hydra.utils.instantiate(
+                    config=test_set_cfg,
+                    train=False,
+                    # path=self.datasets.test_set.path,
+                    path=test_set_cfg.path,
+                    transform=self.test_transforms,
+                ) for test_set_cfg in self.datasets.test_set
+            ]
 
     def _setup_old_method_bla_bla(self, stage: Optional[str] = None):
         
@@ -400,24 +404,24 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
         )
     
     def val_dataloader(self) -> Sequence[DataLoader]:
-        # see CIFAR10 for support of union of multiple dataset!
-        print("\n\n\n")
-        print(self.validation_datasets)
-        print("\n\n\n")
-        return DataLoader(
-            self.validation_datasets,
-            shuffle=False,
-            batch_size=self.batch_size.val,
-            num_workers=self.num_workers.val,
-            pin_memory=self.pin_memory,
-            collate_fn=partial(
-                collate_fn, split="val", metadata=self.metadata
-            ),
-        )
+        return [
+            DataLoader(
+                dataset,
+                shuffle=False,
+                batch_size=self.batch_size.val,
+                num_workers=self.num_workers.val,
+                pin_memory=self.pin_memory,
+                collate_fn=partial(
+                    collate_fn, split="val", metadata=self.metadata
+                ),
+            )
+            for dataset in self.validation_datasets
+        ]
 
     def test_dataloader(self) -> Sequence[DataLoader]:
-        return DataLoader(
-                dataset=self.test_datasets,
+        return [
+            DataLoader(
+                dataset,
                 shuffle=False,
                 batch_size=self.batch_size.test,
                 num_workers=self.num_workers.test,
@@ -426,6 +430,8 @@ class AntsVsBeesDataModule(pl.LightningDataModule):
                     collate_fn, split="test", metadata=self.metadata
                 ),
             )
+            for dataset in self.test_datasets
+        ]
 
     def __repr__(self) -> str:
         return (
