@@ -472,13 +472,16 @@ class Advanced_ResNet(nn.Module):
         lin_init_method: bool,
         lin_freeze_parameters: bool,
         transfer_learning: bool,
-        dropout_probability: float
+        dropout_probability: float,
+        in_channels: int
     ):
         super(Advanced_ResNet, self).__init__()
         assert isinstance(layers, tuple), "blocks_args should be a tuple"
         assert len(layers) > 0, "layers must be greater than 0"
 
         self.num_classes = global_params.num_classes
+
+        self.in_channels = in_channels
 
         if global_params.norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -508,7 +511,7 @@ class Advanced_ResNet(nn.Module):
 
         # --- Begin 1st convolutional layer of Advanced ResNet --- #
         self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            self.in_channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
         # if we are doing Transfer Learning, then freeze the parameters, as per
         # Transfer Learning way of working
@@ -734,7 +737,8 @@ class Advanced_ResNet(nn.Module):
         lin_init_method,
         lin_freeze_parameters,
         transfer_learning,
-        dropout_probability
+        dropout_probability,
+        in_channels
     ):
         cls._check_model_name_is_valid(model_name)
 
@@ -746,7 +750,8 @@ class Advanced_ResNet(nn.Module):
             lin_init_method,
             lin_freeze_parameters,
             transfer_learning,
-            dropout_probability
+            dropout_probability,
+            in_channels
         )
 
     @classmethod
@@ -757,7 +762,8 @@ class Advanced_ResNet(nn.Module):
         lin_init_method: str,
         lin_freeze_parameters: bool,
         transfer_learning: bool,
-        dropout_probability: float
+        dropout_probability: float,
+        in_channels: int
     ):
         model = cls.from_name(
             model_name,
@@ -765,7 +771,8 @@ class Advanced_ResNet(nn.Module):
             lin_init_method=lin_init_method,
             lin_freeze_parameters=lin_freeze_parameters,
             transfer_learning=transfer_learning,
-            dropout_probability=dropout_probability
+            dropout_probability=dropout_probability,
+            in_channels=in_channels
         )
 
         # Whether to load the weights for the fully connected layer depends on
@@ -806,7 +813,8 @@ if __name__ == "__main__":
         lin_init_method="he_kaiming_uniform",
         lin_freeze_parameters=True,
         transfer_learning=True,
-        dropout_probability=0.5
+        dropout_probability=0.5,
+        in_channels=3
     )
 
     net(torch.rand((2, 3, 256, 256)))

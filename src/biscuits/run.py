@@ -143,6 +143,8 @@ def run(cfg: DictConfig) -> str:
         dropout_probability=cfg.nn.model.dropout_probability,
         # dropout2d_probability=cfg.nn.model.dropout2d_probability,
         transfer_learning=cfg.nn.model.transfer_learning,
+        # in_channels=cfg.nn.model.in_channels,
+        in_channels=cfg.data.datasets.in_channels,
         _recursive_=False,
     )
     

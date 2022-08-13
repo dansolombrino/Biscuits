@@ -240,6 +240,8 @@ class AdvancedResNetLightningModule(pl.LightningModule):
         self.dropout_probability = kwargs["dropout_probability"]
 
         self.transfer_learning = kwargs["transfer_learning"]
+        
+        self.in_channels = kwargs["in_channels"]
 
         self.optimizer = kwargs["optimizer"]
         try:
@@ -253,7 +255,8 @@ class AdvancedResNetLightningModule(pl.LightningModule):
             lin_init_method=self.lin_init_method,
             lin_freeze_parameters=self.lin_freeze_parameters,
             transfer_learning=self.transfer_learning,
-            dropout_probability=self.dropout_probability
+            dropout_probability=self.dropout_probability,
+            in_channels=self.in_channels
         )
 
         pylogger.info("Instantiated model: ")
@@ -385,6 +388,8 @@ def _debug_AdvancedResNetLighningModule(cfg: omegaconf.DictConfig):
         dropout_probability=cfg.nn.model.dropout_probability,
         # dropout2d_probability=cfg.nn.model.dropout2d_probability,
         transfer_learning=cfg.nn.model.transfer_learning,
+        # in_channels=cfg.nn.model.in_channels,
+        in_channels=cfg.data.datasets.in_channels,
         _recursive_=False,
     )
 
