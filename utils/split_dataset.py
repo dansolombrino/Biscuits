@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 subfolders = [ 
     f.path for f in os.scandir(
-        "/home/dansolombrino/GitHub/biscuits/data/EuroSAT_X_food-101_in"
+        "/home/dansolombrino/GitHub/biscuits/data/EuroSAT_1200_in"
     ) if f.is_dir() 
 ]
 
@@ -73,22 +73,22 @@ for k in tqdm(folders.keys()):
     k_dict = dict()
     
     k_train = k.replace(
-        "EuroSAT_X_food-101_in/", 
-        "EuroSAT_X_food-101_splitted/train/"
+        "EuroSAT_1200_in/", 
+        "EuroSAT_1200_splitted/train/"
     )
     if not os.path.exists(k_train):
         os.makedirs(k_train)
 
     k_validation = k.replace(
-        "EuroSAT_X_food-101_in/", 
-        "EuroSAT_X_food-101_splitted/val/"
+        "EuroSAT_1200_in/", 
+        "EuroSAT_1200_splitted/val/"
     )
     if not os.path.exists(k_validation):
         os.makedirs(k_validation)
     
     k_test = k.replace(
-        "EuroSAT_X_food-101_in/", 
-        "EuroSAT_X_food-101_splitted/test/"
+        "EuroSAT_1200_in/", 
+        "EuroSAT_1200_splitted/test/"
     )
     if not os.path.exists(k_test):
         os.makedirs(k_test)

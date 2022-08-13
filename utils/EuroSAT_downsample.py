@@ -21,7 +21,7 @@ for folder in subfolders:
         ) if f.is_file()
     ]
 
-    random_selections.append(random.sample(files_in_folder, 1000))
+    random_selections.append(random.sample(files_in_folder, 120))
 
 
 for rs in tqdm(random_selections):
@@ -29,7 +29,7 @@ for rs in tqdm(random_selections):
     for f in tqdm(rs):
         f_replaced = f
         f_replaced = f_replaced.replace(
-            "EuroSAT_downsampled_in", "EuroSAT_downsampled_out"
+            "EuroSAT_downsampled_in", "EuroSAT_1200"
         )
 
         path = '/'.join(f_replaced.split('/')[:-1])
