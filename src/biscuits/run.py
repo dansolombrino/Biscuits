@@ -91,7 +91,7 @@ def run(cfg: DictConfig) -> str:
             batch_size=cfg.data.batch_size,
             _recursive_=False,
         )
-    elif "EuroSAT_X_Food_101" in cfg.data["_target_"]:
+    elif "EuroSATDataModule" in cfg.data["_target_"]:
         datamodule: pl.LightningDataModule = hydra.utils.instantiate(
             config=cfg.data,
             datasets=cfg.data.datasets, 
@@ -99,6 +99,15 @@ def run(cfg: DictConfig) -> str:
             batch_size=cfg.data.batch_size,
             _recursive_=False,
         )
+    elif "EuroSAT_X_Food_101DataModule" in cfg.data["_target_"]:
+        datamodule: pl.LightningDataModule = hydra.utils.instantiate(
+            config=cfg.data,
+            datasets=cfg.data.datasets, 
+            num_workers=cfg.data.num_workers,
+            batch_size=cfg.data.batch_size,
+            _recursive_=False,
+        )
+    
     else:
         raise KeyError(
             f"{cfg.data['_target_']} DataModule does NOT exist"

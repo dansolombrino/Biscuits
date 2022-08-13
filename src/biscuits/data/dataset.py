@@ -252,12 +252,21 @@ def _debug_EuroSAT_X_Food_101Dataset(is_training, path, batch_size):
 class EuroSATDataset(Dataset):
 
     TRAIN_SPLIT_SUMMARY_STATISTICS = dict()
+    
     TRAIN_SPLIT_SUMMARY_STATISTICS["1200"] = dict()
     TRAIN_SPLIT_SUMMARY_STATISTICS["1200"]["mean"] = torch.tensor(
         [0.1567, 0.1627, 0.1815]
     )
     TRAIN_SPLIT_SUMMARY_STATISTICS["1200"]["std_dev"] = torch.tensor(
         [0.3636, 0.3691, 0.3854]
+    )
+    
+    TRAIN_SPLIT_SUMMARY_STATISTICS["30000"] = dict()
+    TRAIN_SPLIT_SUMMARY_STATISTICS["30000"]["mean"] = torch.tensor(
+        [0.1604, 0.1636, 0.1798]
+    )
+    TRAIN_SPLIT_SUMMARY_STATISTICS["30000"]["std_dev"] = torch.tensor(
+        [0.3669, 0.3699, 0.3840]
     )
     
     def __init__(self, train: bool, path: str, transform, batch_size = 128):
@@ -270,7 +279,7 @@ class EuroSATDataset(Dataset):
             self.path, self.transform
         )
         
-        # # This is how summary stats have been computed for the dataset
+        # This is how summary stats have been computed for the dataset
         # self.dataloaders = torch.utils.data.DataLoader(
         #     self.image_datasets, 
         #     batch_size=self.batch_size, 
