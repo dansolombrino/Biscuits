@@ -243,6 +243,8 @@ class AdvancedResNetLightningModule(pl.LightningModule):
         
         self.in_channels = kwargs["in_channels"]
 
+        self.num_classes = kwargs["num_classes"]
+
         self.optimizer = kwargs["optimizer"]
         try:
             self.lr_scheduler = kwargs["lr_scheduler"]
@@ -251,7 +253,7 @@ class AdvancedResNetLightningModule(pl.LightningModule):
 
         self.model = Advanced_ResNet.from_pretrained(
             model_name="resnet" + str(self.resnet_depth),
-            num_classes=2,
+            num_classes=self.num_classes,
             lin_init_method=self.lin_init_method,
             lin_freeze_parameters=self.lin_freeze_parameters,
             transfer_learning=self.transfer_learning,

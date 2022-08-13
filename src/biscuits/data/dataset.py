@@ -19,6 +19,22 @@ from nn_core.common import PROJECT_ROOT
 from nn_core.nn_types import Split
 
 
+def _get_summary_statistics(data_loader):
+        channels_sum, channels_squared_sum, num_batches = 0, 0, 0
+
+        for data, _ in data_loader:
+            channels_sum += torch.mean(data, dim=[0, 2, 3])
+            
+            channels_squared_sum += torch.mean(data ** 2, dim=[0, 2, 3])
+            
+            num_batches += 1
+
+        mean = channels_squared_sum/num_batches
+        std = (channels_squared_sum/num_batches - mean ** 2) ** 0.5
+
+        return mean, std
+
+
 class CIFAR10Dataset(Dataset):
     def __init__(
         self,
@@ -152,6 +168,85 @@ def _debug_AntsVsBeesDataset(is_training, path):
     print(ants_vs_bees_dataset)
 
 
+class EuroSAT_X_Food_101Dataset(Dataset):
+    
+    TRAIN_SPLIT_SUMMARY_STATISTICS = dict()
+    TRAIN_SPLIT_SUMMARY_STATISTICS["mean"] = torch.tensor(
+        [0.2639, 0.2117, 0.1778]
+    )
+    TRAIN_SPLIT_SUMMARY_STATISTICS["std_dev"] = torch.tensor(
+        [0.4408, 0.4085, 0.3824]
+    )
+    
+    def __init__(self, train: bool, path: str, transform, batch_size = 128):
+        self.train = train
+        self.path = path
+        self.transform = transform
+        self.batch_size = batch_size
+
+        self.image_datasets = datasets.ImageFolder(
+            self.path, self.transform
+        )
+        
+        # This is how summary stats have been computed for the dataset
+        # self.dataloaders = torch.utils.data.DataLoader(
+        #     self.image_datasets, 
+        #     batch_size=self.batch_size, 
+        #     shuffle=True, 
+        #     num_workers=16
+        # )
+        # summary_stats = _get_summary_statistics(self.dataloaders)
+        # print(f"mean   : {summary_stats[0]}")
+        # print(f"std_dev: {summary_stats[1]}")
+        
+        self.class_names = self.image_datasets.classes
+
+
+    def __len__(self):
+        return len(self.image_datasets)
+
+    def __getitem__(self, index):
+        return self.image_datasets[index]
+
+
+    def __repr__(self) -> str:
+        return f"--- EuroSAT_X_Food_101Dataset ---\n\n" + \
+            f"len: {self.__len__()}\n" + \
+            f"classes: {self.class_names}\n" + \
+            f"train: {self.train}\n" + \
+            f"path : {self.path}\n" + \
+            f"transform: {self.transform}" + \
+            "\n\n---------------------------"
+
+
+def _debug_EuroSAT_X_Food_101Dataset(is_training, path, batch_size):
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(64),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            EuroSAT_X_Food_101Dataset.TRAIN_SPLIT_SUMMARY_STATISTICS["mean"], 
+            EuroSAT_X_Food_101Dataset.TRAIN_SPLIT_SUMMARY_STATISTICS["std_dev"],
+        )
+    ])
+
+    test_transform = transforms.Compose([
+        transforms.CenterCrop(64),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            EuroSAT_X_Food_101Dataset.TRAIN_SPLIT_SUMMARY_STATISTICS["mean"], 
+            EuroSAT_X_Food_101Dataset.TRAIN_SPLIT_SUMMARY_STATISTICS["std_dev"],
+        )
+    ])
+
+    eurosat_x_food_101_dataset = EuroSAT_X_Food_101Dataset(
+        train=is_training, 
+        path=path,
+        transform=train_transform if is_training else test_transform,
+        batch_size=batch_size
+    )
+
+    print(eurosat_x_food_101_dataset)
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
@@ -160,8 +255,13 @@ def main(cfg: omegaconf.DictConfig) -> None:
     Args:
         cfg: the hydra configuration
     """
-    _debug_AntsVsBeesDataset(
-        cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
+    # _debug_AntsVsBeesDataset(
+    #     cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
+    # )
+    _debug_EuroSAT_X_Food_101Dataset(
+        is_training=cfg.data.datasets.train_set.train, 
+        path=cfg.data.datasets.train_set.path,
+        batch_size=cfg.data.batch_size.train
     )
 
 
