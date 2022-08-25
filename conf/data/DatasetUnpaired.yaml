@@ -1,0 +1,53 @@
+_target_: biscuits.data.datamodule.DatasetUnpairedDataModule
+
+datasets:
+  in_channels: 3
+
+  num_classes: 10
+
+  train_set:
+    _target_: biscuits.data.dataset.DatasetUnpaired
+    folderA: ${oc.env:DATASETUNPAIRED_A_TRAIN_DATASET_PATH}
+    trainA: True
+    folderB: ${oc.env:DATASETUNPAIRED_B_TRAIN_DATASET_PATH}
+    trainB: True      
+
+  val_set:
+    - _target_: biscuits.data.dataset.DatasetUnpaired
+      folderA: ${oc.env:DATASETUNPAIRED_A_VAL_DATASET_PATH}
+      trainA: False
+      folderB: ${oc.env:DATASETUNPAIRED_B_VAL_DATASET_PATH}
+      trainB: False
+
+  test_set:
+    - _target_: biscuits.data.dataset.DatasetUnpaired
+      folderA: ${oc.env:DATASETUNPAIRED_A_TEST_DATASET_PATH}
+      trainA: False
+      folderB: ${oc.env:DATASETUNPAIRED_B_TEST_DATASET_PATH}
+      trainB: False
+
+  fixed_pairs: False
+
+img_height: 128
+img_width: 128
+
+gpus: ${train.trainer.gpus}
+
+num_workers:
+  train: 16
+  val: 8
+  test: 8
+
+batch_size:
+  train: 128
+  val: 128
+  test: 128
+
+# how much percentage of test split to reserve for validation.
+#
+# note that we split test set ("val" folder of ants_vs_bees dataset) in order to
+# keep the 60/20/20 train/validation/test split
+# splitting the train portion would reduce the trianing part too much!
+#
+# DEPRECATED --> performed physical split of data!
+#validation_percentage_split: 0.5
