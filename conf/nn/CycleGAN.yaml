@@ -4,7 +4,7 @@ module:
 model:
   _target_: biscuits.modules.CycleGAN
 
-  # resnet_depth: 32
+  num_residual_blocks: 6
 
   conv_init: 
     method: "normal"
@@ -22,6 +22,8 @@ model:
       range: [0, 1]
     bias: "0"
 
+  input_shape: (${data.num_channels}, ${data.img_height}, ${data.img_width})
+
   # lin_init_method: "he_kaiming_normal"
 
   conv_freeze_parameters: False
@@ -36,15 +38,18 @@ model:
   # dropout2d_probability: 0.2
 
   optimizer: 
-    _target_: torch.optim.SGD
+    _target_: torch.optim.Adam
     lr: 0.1
-    momentum: 0.9
-    weight_decay: 1e-4
+    beta_1: 0.5
+    beta_2: 0.999
+    
+    # momentum: 0.9
+    # weight_decay: 1e-4
 
-  # lr_scheduler:
-  #   _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
-  #   T_0: 10
-  #   T_mult: 2
+  lr_scheduler:
+    _target_: torch.optim.lr_scheduler.LambdaLR
+    num_epochs: 200
+    decay_epoch: 100
   #   eta_min: 0 # min value for the lr
   #   last_epoch: -1
   #   verbose: False

@@ -28,6 +28,7 @@ datasets:
 
   fixed_pairs: False
 
+num_channels: 3
 img_height: 128
 img_width: 128
 

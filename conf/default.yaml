@@ -7,9 +7,9 @@ core:
 
 defaults:
   - hydra: default
-  - nn: AdvancedResNet
+  - nn: CycleGAN
   - train: default
-  - data: EuroSAT
+  - data: DatasetUnpaired
   - _self_ # as last argument to allow the override of parameters via this main config
 #    Decomment this parameter to get parallel job running
 #  - hydra/launcher: joblib

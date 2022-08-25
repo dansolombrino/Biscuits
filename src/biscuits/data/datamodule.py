@@ -710,7 +710,8 @@ class DatasetUnpairedDataModule(pl.LightningDataModule):
         batch_size: DictConfig,
         gpus: Optional[Union[List[int], str, int]],
         img_height: int,
-        img_width: int
+        img_width: int,
+        num_channels: int
     ):
         super().__init__()
         self.datasets = datasets
