@@ -1,10 +1,10 @@
-from importlib.metadata import files
 import os
+import random
+import shutil
+from importlib.metadata import files
 from os import listdir
 from os.path import isfile, join
 from pprint import pprint
-import random
-import shutil
 
 TRAIN_PERCENTAGE = 0.6
 VALIDATION_PERCENTAGE = 0.2
@@ -12,21 +12,19 @@ TEST_PERCENTAGE = 1 - TRAIN_PERCENTAGE - VALIDATION_PERCENTAGE
 
 from tqdm import tqdm
 
-subfolders = [ 
-    f.path for f in os.scandir(
-        "/home/dansolombrino/GitHub/biscuits/data/EuroSAT_1200_in"
-    ) if f.is_dir() 
+subfolders = [
+    f.path
+    for f in os.scandir(
+        "/home/dansolombrino/GitHub/biscuits/data/EuroSAT_30000"
+    )
+    if f.is_dir()
 ]
 
 folders = dict()
 folder_indices = dict()
 
 for folder in subfolders:
-    files_in_folder = [
-        f.path for f in os.scandir(
-            folder
-        ) if f.is_file()
-    ]
+    files_in_folder = [f.path for f in os.scandir(folder) if f.is_file()]
 
     random.shuffle(files_in_folder)
 
@@ -35,18 +33,17 @@ for folder in subfolders:
     files_indices = range(0, len(files_in_folder))
 
     train_indices = files_indices[
-        0: int(len(files_indices) * TRAIN_PERCENTAGE)
+        0 : int(len(files_indices) * TRAIN_PERCENTAGE)
     ]
 
     validation_indices = files_indices[
-        int(len(files_indices) * TRAIN_PERCENTAGE) : 
-        int (len(files_indices) * (TRAIN_PERCENTAGE + VALIDATION_PERCENTAGE))
-    ]
-    
-    test_indices = files_indices[
-        int(
+        int(len(files_indices) * TRAIN_PERCENTAGE) : int(
             len(files_indices) * (TRAIN_PERCENTAGE + VALIDATION_PERCENTAGE)
-        ) : 
+        )
+    ]
+
+    test_indices = files_indices[
+        int(len(files_indices) * (TRAIN_PERCENTAGE + VALIDATION_PERCENTAGE)) :
     ]
 
     folder_indices[folder] = dict()
@@ -67,29 +64,20 @@ for folder in subfolders:
 
 # for k in folders.keys():
 for k in tqdm(folders.keys()):
-    
+
     # print(k)
 
     k_dict = dict()
-    
-    k_train = k.replace(
-        "EuroSAT_1200_in/", 
-        "EuroSAT_1200_splitted/train/"
-    )
+
+    k_train = k.replace("EuroSAT_30000/", "EuroSAT_30000_splitted/train/")
     if not os.path.exists(k_train):
         os.makedirs(k_train)
 
-    k_validation = k.replace(
-        "EuroSAT_1200_in/", 
-        "EuroSAT_1200_splitted/val/"
-    )
+    k_validation = k.replace("EuroSAT_30000/", "EuroSAT_30000_splitted/val/")
     if not os.path.exists(k_validation):
         os.makedirs(k_validation)
-    
-    k_test = k.replace(
-        "EuroSAT_1200_in/", 
-        "EuroSAT_1200_splitted/test/"
-    )
+
+    k_test = k.replace("EuroSAT_30000/", "EuroSAT_30000_splitted/test/")
     if not os.path.exists(k_test):
         os.makedirs(k_test)
 
@@ -106,10 +94,8 @@ for k in tqdm(folders.keys()):
     # print(folder_indices[k].keys())
 
     for ind in list(folder_indices[k].keys()):
-        
-        src = folders[k][
-            folder_indices[k][ind][0] : folder_indices[k][ind][-1]
-        ]
+
+        src = folders[k][folder_indices[k][ind][0] : folder_indices[k][ind][-1]]
         # pprint(src[0: 3])
 
         dst = k_dict[ind]
@@ -119,10 +105,10 @@ for k in tqdm(folders.keys()):
 
         for f in src:
             # print(f)
-            
+
             f_name = f.split("/")[-1]
             # print(dst + "/" + f_name)
-            
+
             # print("\n\n")
 
             shutil.copyfile(f, dst + "/" + f_name)
