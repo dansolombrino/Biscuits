@@ -1,0 +1,42 @@
+_target_: biscuits.data.datamodule.EuroSATDataModule
+
+datasets:
+  in_channels: 3
+
+  num_classes: 10
+
+  train_set:
+    _target_: biscuits.data.dataset.EuroSATDataset
+    path: ${oc.env:EUROSAT_TRAIN_DATASET_PATH}
+    train: True
+
+  val_set:
+    - _target_: biscuits.data.dataset.EuroSATDataset
+      path: ${oc.env:EUROSAT_VAL_DATASET_PATH}
+      train: False
+
+  test_set:
+    - _target_: biscuits.data.dataset.EuroSATDataset
+      path: ${oc.env:EUROSAT_TEST_DATASET_PATH}
+      train: False
+
+gpus: ${train.trainer.gpus}
+
+num_workers:
+  train: 16
+  val: 8
+  test: 8
+
+batch_size:
+  train: 128
+  val: 128
+  test: 128
+
+# how much percentage of test split to reserve for validation.
+#
+# note that we split test set ("val" folder of ants_vs_bees dataset) in order to
+# keep the 60/20/20 train/validation/test split
+# splitting the train portion would reduce the trianing part too much!
+#
+# DEPRECATED --> performed physical split of data!
+#validation_percentage_split: 0.5
