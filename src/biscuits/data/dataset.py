@@ -1,5 +1,6 @@
 from random import shuffle
 from typing import Any
+from xmlrpc.client import boolean
 
 import hydra
 import omegaconf
@@ -13,6 +14,14 @@ from torchvision import datasets
 
 import os
 from pprint import pprint
+
+from pathlib import Path
+from typing import Optional, Callable, List, Dict
+from PIL import Image
+import PIL
+import random
+
+
 
 
 from nn_core.common import PROJECT_ROOT
@@ -350,6 +359,174 @@ def _debug_EuroSATDataset(is_training, path, batch_size):
     print(eurosat_dataset)
 
 
+class DatasetUnpaired(Dataset):
+
+    def __init__(self, 
+                 folderA: Path, 
+                 folderB: Path, 
+                 trainA: bool,
+                 trainB: bool,
+                 transform: Optional[Callable] = None,
+                 fixed_pairs: bool = False,
+        ) -> None:
+        """
+        Dataset to handle unpaired images, i.e. the number of images in folderA
+        and in folderB may be different.
+
+        :param folderA: path to the folder that contains the A images
+        :param folderB: path to the folder that contains the B images
+        :param tranform: tranform to apply to the images
+        """
+        super().__init__()
+        self.folderA: Path = Path(folderA)
+        self.folderB: Path = Path(folderB)
+
+        self.trainA, self.trainB = trainA, trainB
+
+        if not (folderA.is_dir() and folderB.is_dir()):
+            raise RuntimeError(f"The folders are not valid!\n\t- Folder A: {folderA}\n\t- Folder B: {folderB}")
+
+        self.filesA: List[Path] = list(sorted(folderA.rglob('*.jpg')))
+        self.filesB: List[Path] = list(sorted(folderB.rglob('*.jpg')))
+
+        if not self.filesA:
+            raise RuntimeError("Empty image lists for folderA!")
+        
+        if not self.filesB:
+            raise RuntimeError("Empty image lists for folderB!")
+
+        self.filesA_num: int = len(self.filesA)
+        self.filesB_num: int = len(self.filesB)
+        
+        self.transform: Optional[Callable] = transform
+        self.fixed_pairs: bool = fixed_pairs
+
+    def __len__(self) -> int:
+        """
+        Since it is unpaired, it is not well defined.
+        We will use the maximum number of images between folderA and folderB
+
+        :returns: maximum number between #imagesA and #imagesB
+        """
+        return max(self.filesA_num, self.filesB_num)
+
+    def pil_loader(self, path: Path) -> PIL.Image:
+        """ PIL loader implementation from the Pytorch's ImageDataset class
+        https://pytorch.org/docs/stable/_modules/torchvision/datasets/folder.html#ImageFolder
+
+        :param path: the path to an image
+        :returns: an image converted into RGB format
+        """
+        # open path as file to avoid ResourceWarning 
+        # (https://github.com/python-pillow/Pillow/issues/835)
+
+        # print(f"[PIL Loader] opening file: {str(path)}")
+        with path.open('rb') as f:
+            img = PIL.Image.open(f)
+            return img.convert('RGB')
+
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+        """
+        Return a random sample imageA-imageB
+
+        :param index: index of the sample (not relevant)
+        :returns: a dictionary containing:
+                    - A: the imageA
+                    - B: the imageB
+                    - pathA: the path to the imageA
+                    - pathB: the path to the imageB
+        """
+
+        # Enforce a valid index for `filesA`
+        fileA = self.filesA[index % self.filesA_num]
+
+        if self.fixed_pairs:
+            # When e.g. testing use reproducible samples
+            fileB = self.filesB[index % self.filesB_num]
+
+        else:
+            # When training, get a random image from filesB
+            fileB = self.filesB[random.randint(0, self.filesB_num - 1)]
+
+        imageA = self.pil_loader(fileA)
+
+        imageB = self.pil_loader(fileB)
+
+        if self.transform is not None:
+            imageA = self.transform(imageA)
+            imageB = self.transform(imageB)
+        
+        return {
+            'A': imageA,
+            'A_path': str(fileA),
+            'B': imageB,
+            'B_path': str(fileB),
+        }
+
+
+def _debug_DatasetUnpaired(
+        folderA: Path, 
+        folderB: Path, 
+        trainA: bool,
+        trainB: bool,
+        fixed_pairs: bool,
+        split: str,
+        img_height: int,
+        img_width: int
+):
+
+    if trainA != trainB:
+        raise(
+            ValueError(
+                f"trainA and trainB should be the same, got instead: " + 
+                f"trainA --> {trainA}, trainB --> {trainB}"
+            )
+        )
+
+    if split == "train":
+        transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    int(img_height * 1.12), Image.BICUBIC
+                ),
+                transforms.RandomCrop(
+                    (img_height, img_width)
+                ),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ]
+        )
+    elif split == "validation":
+        transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    int(img_height * 1.12), Image.BICUBIC
+                ),
+                transforms.CenterCrop(
+                    (img_height, img_width)
+                ),
+                transforms.ToTensor(),
+            ]
+        )
+    else:
+        transform = None
+
+    dataset_unpaired = DatasetUnpaired(
+        folderA=folderA,
+        folderB=folderB,
+        trainA=trainA,
+        trainB=trainB,
+        transform=transform,
+        fixed_pairs=fixed_pairs
+    )
+
+    print(dataset_unpaired.__getitem__(50))
+
+    ### TAKES HELLA TIME ###
+    # for i in tqdm(dataset_unpaired):
+    #     pass
+
+
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
     """Debug main to quickly develop the Dataset.
@@ -360,11 +537,24 @@ def main(cfg: omegaconf.DictConfig) -> None:
     # _debug_AntsVsBeesDataset(
     #     cfg.data.datasets.train_set.train, cfg.data.datasets.train_set.path
     # )
-    _debug_EuroSATDataset(
-        is_training=cfg.data.datasets.train_set.train, 
-        path=cfg.data.datasets.train_set.path,
-        batch_size=cfg.data.batch_size.train
+
+    # _debug_EuroSATDataset(
+    #     is_training=cfg.data.datasets.train_set.train, 
+    #     path=cfg.data.datasets.train_set.path,
+    #     batch_size=cfg.data.batch_size.train
+    # )
+
+    _debug_DatasetUnpaired(
+        folderA = Path(cfg.data.datasets.test_set[0].folderA), 
+        folderB = Path(cfg.data.datasets.test_set[0].folderB), 
+        trainA=cfg.data.datasets.test_set[0].trainA,
+        trainB=cfg.data.datasets.test_set[0].trainB,
+        fixed_pairs=cfg.data.datasets.fixed_pairs,
+        split="test",
+        img_height=cfg.data.img_height,
+        img_width=cfg.data.img_width
     )
+
 
 
 if __name__ == "__main__":

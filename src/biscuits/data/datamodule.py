@@ -15,6 +15,8 @@ from torchvision import transforms
 from nn_core.common import PROJECT_ROOT
 from nn_core.nn_types import Split
 
+from PIL import Image
+
 from biscuits.data.dataset import EuroSAT_X_Food_101Dataset, EuroSATDataset
 
 from pprint import pprint
@@ -700,6 +702,173 @@ class EuroSATDataModule(pl.LightningDataModule):
         )
 
 
+class DatasetUnpairedDataModule(pl.LightningDataModule):
+    def __init__(
+        self,
+        datasets: DictConfig,
+        num_workers: DictConfig,
+        batch_size: DictConfig,
+        gpus: Optional[Union[List[int], str, int]],
+        img_height: int,
+        img_width: int
+    ):
+        super().__init__()
+        self.datasets = datasets
+        self.num_workers = num_workers
+        self.batch_size = batch_size
+        self.pin_memory: bool = gpus is not None and str(gpus) != "0"
+
+        self.train_dataset: Optional[Dataset] = None
+        self.validation_datasets: Optional[Sequence[Dataset]] = None
+        self.test_datasets: Optional[Sequence[Dataset]] = None
+
+        self.train_transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    int(img_height * 1.12), Image.BICUBIC
+                ),
+                transforms.RandomCrop(
+                    (img_height, img_width)
+                ),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ]
+        )
+
+        self.validation_transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    int(img_height * 1.12), Image.BICUBIC
+                ),
+                transforms.CenterCrop(
+                    (img_height, img_width)
+                ),
+                transforms.ToTensor(),
+            ]
+        )
+        
+        self.test_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        )
+
+        self.setup()
+
+    
+    @cached_property
+    def metadata(self) -> MetaData:
+        """Data information to be fed to the Lightning Module as parameter.
+
+        Examples are vocabularies, number of classes...
+
+        Returns:
+            metadata: everything the model should know about the data, wrapped in a MetaData object.
+        """
+        # Since MetaData depends on the training data, we need to ensure the 
+        # setup method has been called.
+        if self.train_dataset is None:
+            self.setup(stage="fit")
+
+        # return MetaData(class_vocab=self.train_dataset.dataset.class_vocab)
+        return MetaData()
+
+    
+    def prepare_data(self) -> None:
+        # download only
+        pass
+
+
+    def setup(self):
+        self.train_dataset = hydra.utils.instantiate(
+            config=self.datasets.train_set,
+            folderA=Path(self.datasets.train_set.folderA),
+            folderB=Path(self.datasets.train_set.folderB),
+            trainA=self.datasets.train_set.trainA,
+            trainB=self.datasets.train_set.trainB,
+            transform=self.train_transform,
+            fixed_pairs=self.datasets.fixed_pairs
+        )
+
+        self.validation_datasets = [
+            hydra.utils.instantiate(
+                config=val_set_cfg,
+                folderA=Path(val_set_cfg.folderA),
+                folderB=Path(val_set_cfg.folderB),
+                trainA=val_set_cfg.trainA,
+                trainB=val_set_cfg.trainB,
+                transform=self.validation_transform,
+                fixed_pairs=self.datasets.fixed_pairs
+            ) for val_set_cfg in self.datasets.val_set
+        ]
+
+        self.test_datasets = [
+            hydra.utils.instantiate(
+                config=test_set_cfg,
+                folderA=Path(test_set_cfg.folderA),
+                folderB=Path(test_set_cfg.folderB),
+                trainA=test_set_cfg.trainA,
+                trainB=test_set_cfg.trainB,
+                transform=self.test_transform,
+                fixed_pairs=self.datasets.fixed_pairs
+            ) for test_set_cfg in self.datasets.test_set
+        ]
+
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.train_dataset,
+            shuffle=True,
+            batch_size=self.batch_size.train,
+            num_workers=self.num_workers.train,
+            pin_memory=self.pin_memory,
+            collate_fn=partial(
+                collate_fn, split="train", metadata=self.metadata
+            ),
+        )
+
+    
+    def val_dataloader(self) -> Sequence[DataLoader]:
+        return [
+            DataLoader(
+                dataset,
+                shuffle=False,
+                batch_size=self.batch_size.val,
+                num_workers=self.num_workers.val,
+                pin_memory=self.pin_memory,
+                collate_fn=partial(
+                    collate_fn, split="val", metadata=self.metadata
+                ),
+            )
+            for dataset in self.validation_datasets
+        ]
+
+
+    def test_dataloader(self) -> Sequence[DataLoader]:
+        return [
+            DataLoader(
+                dataset,
+                shuffle=False,
+                batch_size=self.batch_size.test,
+                num_workers=self.num_workers.test,
+                pin_memory=self.pin_memory,
+                collate_fn=partial(
+                    collate_fn, split="test", metadata=self.metadata
+                ),
+            )
+            for dataset in self.test_datasets
+        ]
+
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"{self.datasets=}, "
+            f"{self.num_workers=}, "
+            f"{self.batch_size=})"
+        )
+
+
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")
 def main(cfg: omegaconf.DictConfig) -> None:
@@ -713,7 +882,11 @@ def main(cfg: omegaconf.DictConfig) -> None:
         _recursive_=False,
     )
 
-    print(datamodule)
+    print(datamodule.train_dataset[10])
+    print("\n\n")
+    print(datamodule.validation_datasets[0][20])
+    print("\n\n")
+    print(datamodule.test_datasets[0][40])
 
     from tqdm import tqdm
     
