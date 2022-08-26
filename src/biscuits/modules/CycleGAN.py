@@ -76,7 +76,8 @@ class ResidualBlock(nn.Module):
         conv_init: omegaconf.DictConfig,
         instancenorm_init: omegaconf.DictConfig,
         conv_should_freeze_parameters: bool,
-        instancenorm_should_freeze_parameters: bool
+        instancenorm_should_freeze_parameters: bool,
+        instancenorm_affine: bool
     ) -> None:
         """
         A generic residual block.
@@ -98,6 +99,38 @@ class ResidualBlock(nn.Module):
             nn.InstanceNorm2d(in_features, affine=True),
         )
 
+        for b in self.block:
+            if "Conv" in b.__class__.__name__:
+                _init_layer_params(
+                    layer=b,
+                    init_method=conv_init.method,
+                    init_range=conv_init.range
+                )
+                
+                _freeze_layer_params(
+                    layer=b, 
+                    should_freeze_parameters=conv_should_freeze_parameters
+                )
+
+            if "InstanceNorm" in b.__class__.__name__ and instancenorm_affine:
+                _init_layer_params(
+                    layer=b,
+                    init_method=instancenorm_init.parameters.method,
+                    init_range=instancenorm_init.parameters.range
+                )
+
+                _init_layer_bias(
+                    layer=b,
+                    init_method=instancenorm_init.bias
+                )
+
+                _freeze_layer_params(
+                    layer=b, 
+                    should_freeze_parameters=
+                        instancenorm_should_freeze_parameters
+                )
+
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         :param x: tensor with shape [batch, channels, w, h]
@@ -115,7 +148,8 @@ class GeneratorResNet(nn.Module):
         conv_init: omegaconf.DictConfig,
         instancenorm_init: omegaconf.DictConfig,
         conv_should_freeze_parameters: bool,
-        instancenorm_should_freeze_parameters: bool
+        instancenorm_should_freeze_parameters: bool,
+        instancenorm_affine: bool
     ) -> None:
         """
         Image-conditioned image generator.
@@ -159,7 +193,8 @@ class GeneratorResNet(nn.Module):
                     conv_should_freeze_parameters = 
                         conv_should_freeze_parameters,
                     instancenorm_should_freeze_parameters = 
-                        instancenorm_should_freeze_parameters 
+                        instancenorm_should_freeze_parameters,
+                    instancenorm_affine=instancenorm_affine
                 )
             ]
 
@@ -196,7 +231,7 @@ class GeneratorResNet(nn.Module):
                     should_freeze_parameters=conv_should_freeze_parameters
                 )
 
-            if "InstanceNorm" in b.__class__.__name__:
+            if "InstanceNorm" in b.__class__.__name__ and instancenorm_affine:
                 _init_layer_params(
                     layer=b,
                     init_method=instancenorm_init.parameters.method,
@@ -230,7 +265,8 @@ class Discriminator(nn.Module):
         conv_init: omegaconf.DictConfig,
         instancenorm_init: omegaconf.DictConfig,
         conv_should_freeze_parameters: bool,
-        instancenorm_should_freeze_parameters: bool
+        instancenorm_should_freeze_parameters: bool,
+        instancenorm_affine: bool
     ) -> None:
         """
         Discriminator that tries to infer if an image is:
@@ -251,9 +287,43 @@ class Discriminator(nn.Module):
         ) -> Sequence[nn.Module]:
             """Returns downsampling layers of each discriminator block"""
             layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
+
             if normalize:
                 layers.append(nn.InstanceNorm2d(out_filters, affine=True))
+
             layers.append(nn.LeakyReLU(0.2, inplace=True))
+
+            for b in layers:
+                if "Conv" in b.__class__.__name__:
+                    _init_layer_params(
+                        layer=b,
+                        init_method=conv_init.method,
+                        init_range=conv_init.range
+                    )
+                    
+                    _freeze_layer_params(
+                        layer=b, 
+                        should_freeze_parameters=conv_should_freeze_parameters
+                    )
+
+                if "InstanceNorm" in b.__class__.__name__ and instancenorm_affine:
+                    _init_layer_params(
+                        layer=b,
+                        init_method=instancenorm_init.parameters.method,
+                        init_range=instancenorm_init.parameters.range
+                    )
+
+                    _init_layer_bias(
+                        layer=b,
+                        init_method=instancenorm_init.bias
+                    )
+
+                    _freeze_layer_params(
+                        layer=b, 
+                        should_freeze_parameters=
+                            instancenorm_should_freeze_parameters
+                    )
+
             return layers
 
         self.model = nn.Sequential(
@@ -278,7 +348,7 @@ class Discriminator(nn.Module):
                     should_freeze_parameters=conv_should_freeze_parameters
                 )
 
-            if "InstanceNorm" in b.__class__.__name__:
+            if "InstanceNorm" in b.__class__.__name__ and instancenorm_affine:
                 _init_layer_params(
                     layer=b,
                     init_method=instancenorm_init.parameters.method,

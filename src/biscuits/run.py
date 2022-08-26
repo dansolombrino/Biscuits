@@ -200,6 +200,7 @@ def run(cfg: DictConfig) -> str:
             instancenorm_init=cfg.nn.model.instancenorm_init,
             conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
             instancenorm_freeze_parameters=cfg.nn.model.instancenorm_freeze_parameters,
+            instancenorm_affine=cfg.nn.model.instancenorm_affine,
             lr=cfg.nn.model.optimizer.lr,
             beta_1=cfg.nn.model.optimizer.beta_1,
             beta_2=cfg.nn.model.optimizer.beta_2,

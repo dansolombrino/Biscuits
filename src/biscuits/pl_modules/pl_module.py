@@ -466,7 +466,8 @@ class CycleGANLightningModule(pl.LightningModule):
             conv_init=kwargs["conv_init"],
             instancenorm_init=kwargs["instancenorm_init"],
             conv_should_freeze_parameters=kwargs["conv_freeze_parameters"],
-            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"]
+            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"],
+            instancenorm_affine=kwargs["instancenorm_affine"]
         )
         self.G_BA = GeneratorResNet(
             input_shape=self.input_shape, 
@@ -474,7 +475,8 @@ class CycleGANLightningModule(pl.LightningModule):
             conv_init=kwargs["conv_init"],
             instancenorm_init=kwargs["instancenorm_init"],
             conv_should_freeze_parameters=kwargs["conv_freeze_parameters"],
-            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"]
+            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"],
+            instancenorm_affine=kwargs["instancenorm_affine"]
         )
 
         # Discriminators
@@ -483,14 +485,16 @@ class CycleGANLightningModule(pl.LightningModule):
             conv_init=kwargs["conv_init"],
             instancenorm_init=kwargs["instancenorm_init"],
             conv_should_freeze_parameters=kwargs["conv_freeze_parameters"],
-            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"]
+            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"],
+            instancenorm_affine=kwargs["instancenorm_affine"]
         )
         self.D_B = Discriminator(
             input_shape=self.input_shape,
             conv_init=kwargs["conv_init"],
             instancenorm_init=kwargs["instancenorm_init"],
             conv_should_freeze_parameters=kwargs["conv_freeze_parameters"],
-            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"]
+            instancenorm_should_freeze_parameters=kwargs["instancenorm_freeze_parameters"],
+            instancenorm_affine=kwargs["instancenorm_affine"]
         )
 
         # Initialize weights
@@ -1032,15 +1036,26 @@ def _debug_CycleGANLightningModule(cfg: omegaconf.DictConfig):
 
     )
 
+    # layers = [
+    #     module for module in CycleGAN_pl_module.modules() if not isinstance(module, nn.Sequential)
+    # ]
+
+    # for l in layers:
+    #     print(l)
+        # print("\n\n")
+
+
+
+
     # print(CycleGAN_pl_module)
 
-    out = CycleGAN_pl_module(torch.rand((10, 3, 128, 128)), True)
+    # out = CycleGAN_pl_module(torch.rand((10, 3, 128, 128)), True)
     # print(out)
-    print(out.shape)
+    # print(out.shape)
     
-    out = CycleGAN_pl_module(torch.rand((10, 3, 128, 128)), False)
+    # out = CycleGAN_pl_module(torch.rand((10, 3, 128, 128)), False)
     # print(out)
-    print(out.shape)
+    # print(out.shape)
 
 
 @hydra.main(config_path=str(PROJECT_ROOT / "conf"), config_name="default")

@@ -30,7 +30,8 @@ model:
 
   # batchnorm_freeze_parameters: False
 
-  instancenorm_freeze_parameters: False
+  instancenorm_freeze_parameters: False # ignored if instancenorm_affine = False!
+  instancenorm_affine: True
 
   # lin_freeze_parameters: False
 
