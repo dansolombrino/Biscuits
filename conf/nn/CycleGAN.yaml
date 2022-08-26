@@ -26,9 +26,9 @@ model:
 
   # lin_init_method: "he_kaiming_normal"
 
-  conv_freeze_parameters: False
+  conv_freeze_parameters: True
 
-  batchnorm_freeze_parameters: False
+  # batchnorm_freeze_parameters: False
 
   instancenorm_freeze_parameters: False
 
@@ -36,6 +36,11 @@ model:
 
   # dropout_probability: 0.5
   # dropout2d_probability: 0.2
+
+  lambda_cyc: 5.0
+  lambda_id: 10.0
+
+  log_images: 50
 
   optimizer: 
     _target_: torch.optim.Adam
@@ -48,7 +53,7 @@ model:
 
   lr_scheduler:
     _target_: torch.optim.lr_scheduler.LambdaLR
-    num_epochs: 200
+    num_epochs: 2501
     decay_epoch: 100
   #   eta_min: 0 # min value for the lr
   #   last_epoch: -1

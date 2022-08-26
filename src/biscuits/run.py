@@ -107,6 +107,17 @@ def run(cfg: DictConfig) -> str:
             batch_size=cfg.data.batch_size,
             _recursive_=False,
         )
+    elif "DatasetUnpaired" in cfg.data["_target_"]:
+        datamodule: pl.LightningDataModule = hydra.utils.instantiate(
+            config=cfg.data,
+            datasets=cfg.data.datasets, 
+            num_workers=cfg.data.num_workers,
+            batch_size=cfg.data.batch_size,
+            img_height=cfg.data.img_height,
+            img_width=cfg.data.img_width,
+            num_channels=cfg.data.num_channels,
+            _recursive_=False,
+        )
     
     else:
         raise KeyError(
@@ -148,28 +159,63 @@ def run(cfg: DictConfig) -> str:
     
     elif "AdvancedResNetLightningModule" in cfg.nn.module['_target_']:
         model: pl.LightningModule = hydra.utils.instantiate(
-        config=cfg.nn.module,
-        optimizer=cfg.nn.model.optimizer,
-        resnet_depth=cfg.nn.model.resnet_depth,
-        # conv_init_method=cfg.nn.model.conv_init_method,
-        # batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
-        lin_init_method=cfg.nn.model.lin_init_method,
-        # conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
-        # batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
-        lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
-        dropout_probability=cfg.nn.model.dropout_probability,
-        # dropout2d_probability=cfg.nn.model.dropout2d_probability,
-        transfer_learning=cfg.nn.model.transfer_learning,
-        # in_channels=cfg.nn.model.in_channels,
-        in_channels=cfg.data.datasets.in_channels,
-        num_classes=cfg.data.datasets.num_classes,
-        _recursive_=False,
-    )
+            config=cfg.nn.module,
+            optimizer=cfg.nn.model.optimizer,
+            resnet_depth=cfg.nn.model.resnet_depth,
+            # conv_init_method=cfg.nn.model.conv_init_method,
+            # batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+            lin_init_method=cfg.nn.model.lin_init_method,
+            # conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+            # batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+            lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+            dropout_probability=cfg.nn.model.dropout_probability,
+            # dropout2d_probability=cfg.nn.model.dropout2d_probability,
+            transfer_learning=cfg.nn.model.transfer_learning,
+            # in_channels=cfg.nn.model.in_channels,
+            in_channels=cfg.data.datasets.in_channels,
+            num_classes=cfg.data.datasets.num_classes,
+            _recursive_=False,
+        )
+
+    elif "CycleGANLightningModule" in cfg.nn.module['_target_']:
+        model: pl.LightningModule = hydra.utils.instantiate(
+            config=cfg.nn.module,
+            optimizer=cfg.nn.model.optimizer,
+            # resnet_depth=cfg.nn.model.resnet_depth,
+            # conv_init_method=cfg.nn.model.conv_init_method,
+            # batchnorm_init_methods=cfg.nn.model.batchnorm_init_methods,
+            # lin_init_method=cfg.nn.model.lin_init_method,
+            # conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+            # batchnorm_freeze_parameters=cfg.nn.model.batchnorm_freeze_parameters,
+            # lin_freeze_parameters=cfg.nn.model.lin_freeze_parameters,
+            # dropout_probability=cfg.nn.model.dropout_probability,
+            # dropout2d_probability=cfg.nn.model.dropout2d_probability,
+            # transfer_learning=cfg.nn.model.transfer_learning,
+            # in_channels=cfg.nn.model.in_channels,
+            # in_channels=cfg.data.datasets.in_channels,
+            # num_classes=cfg.data.datasets.num_classes,
+            input_shape=cfg.nn.model.input_shape,
+            num_residual_blocks=cfg.nn.model.num_residual_blocks,
+            conv_init=cfg.nn.model.conv_init,
+            instancenorm_init=cfg.nn.model.instancenorm_init,
+            conv_freeze_parameters=cfg.nn.model.conv_freeze_parameters,
+            instancenorm_freeze_parameters=cfg.nn.model.instancenorm_freeze_parameters,
+            lr=cfg.nn.model.optimizer.lr,
+            beta_1=cfg.nn.model.optimizer.beta_1,
+            beta_2=cfg.nn.model.optimizer.beta_2,
+            num_epochs=cfg.nn.model.lr_scheduler.num_epochs,
+            decay_epoch=cfg.nn.model.lr_scheduler.decay_epoch,
+            lambda_cyc=cfg.nn.model.lambda_cyc,
+            lambda_id=cfg.nn.model.lambda_id,
+            log_images=cfg.nn.model.log_images,
+            _recursive_=False,
+        )
     
     # default case
     else: 
         raise KeyError(
-            f"No LighningModule named {cfg.nn.module['_target_']}"
+            f"No LighningModule named {cfg.nn.module['_target_']}. " + 
+            f"Please provide an implementation, or change module..."
         )
         
 

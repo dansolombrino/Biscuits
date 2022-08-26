@@ -1,5 +1,6 @@
 import logging
 from pickletools import optimize
+from pprint import pprint
 from typing import Any, Mapping, Optional, Sequence, Tuple, Union, Dict, List
 
 
@@ -540,8 +541,13 @@ class CycleGANLightningModule(pl.LightningModule):
         self.lr = kwargs["lr"]
         self.beta_1 = kwargs["beta_1"]
         self.beta_2 = kwargs["beta_2"]
-        self.num_epochs = kwargs["num_epochs"],
+        self.num_epochs = kwargs["num_epochs"]
         self.decay_epoch = kwargs["decay_epoch"]
+
+        self.lambda_cyc = kwargs["lambda_cyc"]
+        self.lambda_id = kwargs["lambda_id"]
+
+        self.log_images = kwargs["log_images"]
 
 
     def forward(self, x: torch.Tensor, a_to_b: bool) -> torch.Tensor:
@@ -592,6 +598,7 @@ class CycleGANLightningModule(pl.LightningModule):
 
         # Schedulers for each optimizers
         # TODO instanciate schedulers via hydra, if possible and practical
+
         lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(
             optimizer_G,
             lr_lambda=LambdaLR(self.num_epochs, self.decay_epoch).step,
@@ -753,7 +760,7 @@ class CycleGANLightningModule(pl.LightningModule):
             # Identity A and B loss
             loss_id_A = self.identity_loss(real_A, self.G_BA)
             loss_id_B = self.identity_loss(real_B, self.G_AB)
-            loss_identity = self.hparams["lambda_id"] * ((loss_id_A + loss_id_B) / 2)
+            loss_identity = self.lambda_id * ((loss_id_A + loss_id_B) / 2)
 
             # GAN A loss and GAN B loss
             loss_GAN_AB, self.fake_B = self.gan_loss(self.G_AB, self.D_B, real_A, valid)
@@ -763,7 +770,7 @@ class CycleGANLightningModule(pl.LightningModule):
             # Cycle loss: A -> B -> A  and  B -> A -> B
             loss_cycle_A = self.cycle_loss(self.fake_B, self.G_BA, real_A)
             loss_cycle_B = self.cycle_loss(self.fake_A, self.G_AB, real_B)
-            loss_cycle = self.hparams["lambda_cyc"] * ((loss_cycle_A + loss_cycle_B) / 2)
+            loss_cycle = self.lambda_cyc * ((loss_cycle_A + loss_cycle_B) / 2)
 
             # Total loss
             loss_G = loss_GAN + loss_cycle + loss_identity
@@ -891,12 +898,69 @@ class CycleGANLightningModule(pl.LightningModule):
 
         # Cycle loss aggregation
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
-        loss_cycle = self.hparams["lambda_cyc"] * loss_cycle
+        loss_cycle = self.lambda_cyc * loss_cycle
 
         # Total loss
         loss_G = loss_cycle
 
-        return {"val_loss": loss_G, "images_BA": images_BA, "images_AB": images_AB}
+        return {
+            "val_loss": loss_G, 
+            "loss/val": loss_G,
+            "images_BA": images_BA, 
+            "images_AB": images_AB
+        }
+    
+    def test_step(
+        self, batch: Dict[str, torch.Tensor], batch_idx: int
+    ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
+        """ Implements a single validation step
+
+        In each validation step some translation examples are produced and a
+        validation loss that uses the cycle consistency is computed
+        
+        :param batch: the current validation batch
+        :param batch_idx: the index of the current validation batch
+
+        :returns: the loss and example images
+        """
+
+        real_B = batch["B"]
+        fake_A = self.G_BA(real_B)
+        images_BA = self.get_image_examples(real_B, fake_A)
+
+        real_A = batch["A"]
+        fake_B = self.G_AB(real_A)
+        images_AB = self.get_image_examples(real_A, fake_B)
+
+        ####
+
+        real_A = batch["A"]
+        real_B = batch["B"]
+
+        fake_B = self.G_AB(real_A)
+        fake_A = self.G_BA(real_B)
+
+        # Cycle loss A -> B -> A
+        recov_A = self.G_BA(fake_B)
+        loss_cycle_A = self.criterion_cycle(recov_A, real_A)
+
+        # Cycle loss B -> A -> B
+        recov_B = self.G_AB(fake_A)
+        loss_cycle_B = self.criterion_cycle(recov_B, real_B)
+
+        # Cycle loss aggregation
+        loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
+        loss_cycle = self.lambda_cyc * loss_cycle
+
+        # Total loss
+        loss_G = loss_cycle
+
+        return {
+            "val_loss": loss_G, 
+            "loss/val": loss_G,
+            "images_BA": images_BA, 
+            "images_AB": images_AB
+        }
 
 
     def validation_epoch_end(
@@ -921,8 +985,8 @@ class CycleGANLightningModule(pl.LightningModule):
             images_AB.extend(x["images_AB"])
             images_BA.extend(x["images_BA"])
 
-        images_AB = images_AB[: self.hparams["log_images"]]
-        images_BA = images_BA[: self.hparams["log_images"]]
+        images_AB = images_AB[: self.log_images]
+        images_BA = images_BA[: self.log_images]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
             print(f"Logged {len(images_AB)} images for each category.")
@@ -934,8 +998,16 @@ class CycleGANLightningModule(pl.LightningModule):
         self.is_sanity = False
 
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        self.log_dict({"val_loss": avg_loss})
-        return {"val_loss": avg_loss}
+        self.log_dict(
+            {
+                "val_loss": avg_loss,
+                "loss/val": avg_loss
+            }
+        )
+        return {
+            "val_loss": avg_loss,
+            "loss/val": avg_loss
+        }
 
 
 def _debug_CycleGANLightningModule(cfg: omegaconf.DictConfig):
@@ -952,7 +1024,11 @@ def _debug_CycleGANLightningModule(cfg: omegaconf.DictConfig):
         beta_1=cfg.nn.model.optimizer.beta_1,
         beta_2=cfg.nn.model.optimizer.beta_2,
         num_epochs=cfg.nn.model.lr_scheduler.num_epochs,
-        decay_epoch=cfg.nn.model.lr_scheduler.decay_epoch
+        decay_epoch=cfg.nn.model.lr_scheduler.decay_epoch,
+        lambda_cyc=cfg.nn.model.lambda_cyc,
+        lambda_id=cfg.nn.model.lambda_id,
+        log_images=cfg.nn.model.log_images,
+
 
     )
 
