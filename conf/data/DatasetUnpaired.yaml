@@ -29,8 +29,8 @@ datasets:
   fixed_pairs: False
 
 num_channels: 3
-img_height: 64
-img_width: 64
+img_height: 96
+img_width: 96
 
 gpus: ${train.trainer.gpus}
 
@@ -40,8 +40,8 @@ num_workers:
   test: 8
 
 batch_size:
-  train: 8
-  val: 8
+  train: 16
+  val: 16
   test: 2
 
 # how much percentage of test split to reserve for validation.
